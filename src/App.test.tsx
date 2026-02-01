@@ -168,3 +168,29 @@ it("queues a run from the composer and shows it in the list", async () => {
   expect(within(runList!).getByText(/Investigate customer churn spikes/i)).toBeInTheDocument();
   expect(screen.getAllByText(/Queued/i).length).toBeGreaterThan(0);
 });
+
+it("confirms run actions via toast and updates status", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+
+  const pauseButtons = within(runList!).getAllByRole("button", { name: /Pause/i });
+  const pauseButton = pauseButtons.find((button) => !button.hasAttribute("disabled"));
+  expect(pauseButton).toBeTruthy();
+  await act(async () => {
+    await user.click(pauseButton!);
+  });
+
+  const confirmButton = await screen.findByRole("button", { name: /Pause run/i });
+  await act(async () => {
+    await user.click(confirmButton);
+  });
+
+  const targetRun = within(runList!)
+    .getByText(/r-114/i)
+    .closest(".run") as HTMLElement | null;
+  expect(targetRun).not.toBeNull();
+  expect(within(targetRun!).getByText(/Waiting/i)).toBeInTheDocument();
+});

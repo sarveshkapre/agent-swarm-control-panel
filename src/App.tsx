@@ -20,6 +20,7 @@ import OverviewSection from "./components/OverviewSection";
 import PolicyModal from "./components/PolicyModal";
 import RunComposerCard from "./components/RunComposerCard";
 import RunTemplatesCard from "./components/RunTemplatesCard";
+import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
 
 type LogLevelFilter = "all" | "info" | "warn" | "error";
@@ -83,10 +84,19 @@ type StoredState = {
   logAgent: string;
   pinnedLogs: string[];
   queuedRuns: Run[];
+  runOverrides: Record<string, RunStatus>;
   policy: PolicySettings;
   spikeAlerts: SpikeAlerts;
   logBudget: LogBudget;
   selectedTemplateId: string;
+};
+
+type ConfirmationToast = {
+  id: string;
+  message: string;
+  confirmLabel: string;
+  runId: string;
+  nextStatus: RunStatus;
 };
 
 const defaultLogBudget: LogBudget = { warnBudget: 5, errorBudget: 2 };
@@ -239,6 +249,9 @@ export default function App() {
   const [queuedRuns, setQueuedRuns] = useState<Run[]>(
     () => initialStoredState?.queuedRuns ?? []
   );
+  const [runOverrides, setRunOverrides] = useState<Record<string, RunStatus>>(
+    () => initialStoredState?.runOverrides ?? {}
+  );
   const [pinnedLogs, setPinnedLogs] = useState<string[]>(
     () => initialStoredState?.pinnedLogs ?? []
   );
@@ -259,6 +272,7 @@ export default function App() {
   const [composerOwner, setComposerOwner] = useState("Ops");
   const [composerTemplateId, setComposerTemplateId] = useState("none");
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [confirmationToasts, setConfirmationToasts] = useState<ConfirmationToast[]>([]);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const modalPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
@@ -274,9 +288,13 @@ export default function App() {
   const overlayOpen = selectedApproval !== null || policyOpen;
 
   const runData = useMemo(() => {
-    if (queuedRuns.length === 0) return runs;
-    return [...queuedRuns, ...runs];
-  }, [queuedRuns]);
+    const baseRuns = queuedRuns.length === 0 ? runs : [...queuedRuns, ...runs];
+    if (Object.keys(runOverrides).length === 0) return baseRuns;
+    return baseRuns.map((run) => {
+      const override = runOverrides[run.id];
+      return override ? { ...run, status: override } : run;
+    });
+  }, [queuedRuns, runOverrides]);
 
   useEffect(() => {
     if (overlayOpen) {
@@ -368,6 +386,7 @@ export default function App() {
       logAgent,
       pinnedLogs,
       queuedRuns,
+      runOverrides,
       policy,
       spikeAlerts,
       logBudget,
@@ -382,6 +401,7 @@ export default function App() {
     logAgent,
     pinnedLogs,
     queuedRuns,
+    runOverrides,
     policy,
     spikeAlerts,
     logBudget,
@@ -482,6 +502,7 @@ export default function App() {
       logAgent,
       pinnedLogs,
       queuedRuns,
+      runOverrides,
       policy,
       spikeAlerts,
       logBudget,
@@ -517,6 +538,7 @@ export default function App() {
       setLogAgent(parsed.logAgent ?? "all");
       setPinnedLogs(parsed.pinnedLogs ?? []);
       setQueuedRuns(parsed.queuedRuns ?? []);
+      setRunOverrides(parsed.runOverrides ?? {});
       setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
       setLogBudget(parsed.logBudget ?? defaultLogBudget);
@@ -579,6 +601,57 @@ export default function App() {
     );
   };
 
+  const handleRunAction = (run: Run, action: "pause" | "retry" | "cancel") => {
+    const config = {
+      pause: {
+        message: `Pause ${run.id}?`,
+        confirmLabel: "Pause run",
+        nextStatus: "waiting" as const
+      },
+      retry: {
+        message: `Retry ${run.id}?`,
+        confirmLabel: "Retry run",
+        nextStatus: "running" as const
+      },
+      cancel: {
+        message: `Cancel ${run.id}?`,
+        confirmLabel: "Cancel run",
+        nextStatus: "failed" as const
+      }
+    }[action];
+
+    const toast: ConfirmationToast = {
+      id: `${run.id}-${action}-${Date.now()}`,
+      message: config.message,
+      confirmLabel: config.confirmLabel,
+      runId: run.id,
+      nextStatus: config.nextStatus
+    };
+    setConfirmationToasts((prev) => [toast, ...prev].slice(0, 3));
+  };
+
+  const confirmToast = (id: string) => {
+    setConfirmationToasts((prev) => {
+      const toast = prev.find((item) => item.id === id);
+      if (!toast) return prev;
+      const updater = (current: Run[]) =>
+        current.map((run) =>
+          run.id === toast.runId ? { ...run, status: toast.nextStatus } : run
+        );
+      setQueuedRuns((current) => updater(current));
+      setRunOverrides((current) => ({
+        ...current,
+        [toast.runId]: toast.nextStatus
+      }));
+      setBanner(`Updated ${toast.runId} to ${toast.nextStatus}.`);
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const dismissToast = (id: string) => {
+    setConfirmationToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
   const logAgents = useMemo(
     () => Array.from(new Set(logs.map((log) => log.agent))),
     []
@@ -608,6 +681,7 @@ export default function App() {
         filteredRuns={filteredRuns}
         runStatusLabel={runStatusLabel}
         onQueueRun={() => queueRun()}
+        onRunAction={handleRunAction}
       />
 
       <section className="grid">
@@ -702,6 +776,12 @@ export default function App() {
           panelRef={modalPanelRef}
         />
       ) : null}
+
+      <ToastStack
+        toasts={confirmationToasts}
+        onConfirm={confirmToast}
+        onDismiss={dismissToast}
+      />
     </div>
   );
 }

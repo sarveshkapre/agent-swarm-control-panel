@@ -12,6 +12,7 @@
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
 - Regression tests for drawer/modal focus management.
 - Run composer for queuing local runs (optional template).
+- Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 
 ## [0.1.0] - 2026-02-01
 ### Added

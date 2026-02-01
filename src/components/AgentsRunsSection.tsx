@@ -8,6 +8,7 @@ type AgentsRunsSectionProps = {
   filteredRuns: Run[];
   runStatusLabel: Record<RunStatus, string>;
   onQueueRun: () => void;
+  onRunAction: (run: Run, action: "pause" | "retry" | "cancel") => void;
 };
 
 export default function AgentsRunsSection({
@@ -17,7 +18,8 @@ export default function AgentsRunsSection({
   onRunSearchChange,
   filteredRuns,
   runStatusLabel,
-  onQueueRun
+  onQueueRun,
+  onRunAction
 }: AgentsRunsSectionProps) {
   return (
     <section className="grid">
@@ -89,6 +91,32 @@ export default function AgentsRunsSection({
                   <p className="muted">Tokens</p>
                   <p>{run.tokens}</p>
                 </div>
+              </div>
+              <div className="run-actions">
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => onRunAction(run, "pause")}
+                  disabled={run.status !== "running"}
+                >
+                  Pause
+                </button>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => onRunAction(run, "retry")}
+                  disabled={run.status !== "failed"}
+                >
+                  Retry
+                </button>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => onRunAction(run, "cancel")}
+                  disabled={run.status !== "queued" && run.status !== "waiting"}
+                >
+                  Cancel
+                </button>
               </div>
             </article>
           ))}

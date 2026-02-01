@@ -7,6 +7,7 @@
 - Added focus trap + restore for drawer and policy modal.
 - Added a run composer to queue local runs (with optional templates).
 - Refactored the dashboard into modular components.
+- Added per-run actions with confirmation toasts.
 
 ## How to verify
 - `make check`
@@ -16,6 +17,7 @@
   - Start/Pause stream doesn’t spam intervals.
   - Drawer/modal keep focus inside and restore focus on close.
   - Composer queues a run and it appears in the run list.
+  - Pause/Retry/Cancel actions show a toast and update status after confirm.
 
 ## Shipping
 - Shipped directly to `main` (no PR).
