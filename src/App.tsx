@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { agents, approvals, logs, runs } from "./data/mockData";
 import type { AgentStatus, Approval, RunStatus } from "./types";
+
+type LogLevelFilter = "all" | "info" | "warn" | "error";
 
 const statusLabel: Record<AgentStatus, string> = {
   idle: "Idle",
@@ -57,7 +59,7 @@ type StoredState = {
   theme: "dark" | "light";
   runSearch: string;
   logSearch: string;
-  logLevel: string;
+  logLevel: LogLevelFilter;
   logAgent: string;
   pinnedLogs: string[];
   policy: {
@@ -82,6 +84,9 @@ type StoredState = {
   };
   selectedTemplateId: string;
 };
+
+const defaultLogBudget = { warnBudget: 5, errorBudget: 2 };
+const defaultSpikeAlerts = { enabled: true, windowMinutes: 15, threshold: 3 };
 
 const defaultPolicy: StoredState["policy"] = {
   mode: "Approve-by-default",
@@ -133,59 +138,110 @@ const defaultTemplates = [
   }
 ];
 
+function getStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const storage = window.localStorage;
+    if (!storage) return null;
+    if (typeof storage.getItem !== "function") return null;
+    if (typeof storage.setItem !== "function") return null;
+    if (typeof storage.removeItem !== "function") return null;
+    return storage;
+  } catch {
+    return null;
+  }
+}
+
+function safeJsonParse<T>(raw: string): T | null {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredState(): Partial<StoredState> | null {
+  const raw = getStorage()?.getItem(storageKey);
+  if (!raw) return null;
+  const parsed = safeJsonParse<Partial<StoredState>>(raw);
+  if (!parsed || typeof parsed !== "object") return null;
+  return parsed;
+}
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!target) return false;
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (target.isContentEditable) return true;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+function downloadJson(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export default function App() {
-  const [runSearch, setRunSearch] = useState("");
-  const [logSearch, setLogSearch] = useState("");
-  const [logLevel, setLogLevel] = useState("all");
-  const [logAgent, setLogAgent] = useState("all");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [initialStoredState] = useState<Partial<StoredState> | null>(() =>
+    readStoredState()
+  );
+
+  const [runSearch, setRunSearch] = useState(() => initialStoredState?.runSearch ?? "");
+  const [logSearch, setLogSearch] = useState(() => initialStoredState?.logSearch ?? "");
+  const [logLevel, setLogLevel] = useState<LogLevelFilter>(() => {
+    const value = initialStoredState?.logLevel;
+    return value === "info" || value === "warn" || value === "error" || value === "all"
+      ? value
+      : "all";
+  });
+  const [logAgent, setLogAgent] = useState(() => initialStoredState?.logAgent ?? "all");
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const value = initialStoredState?.theme;
+    return value === "light" || value === "dark" ? value : "dark";
+  });
   const [banner, setBanner] = useState<string | null>(null);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(
     null
   );
   const [policyOpen, setPolicyOpen] = useState(false);
-  const [policy, setPolicy] = useState(defaultPolicy);
-  const [pinnedLogs, setPinnedLogs] = useState<string[]>([]);
-  const [streaming, setStreaming] = useState(false);
-  const [streamInterval, setStreamInterval] = useState<number | null>(null);
-  const [logBudget, setLogBudget] = useState({ warnBudget: 5, errorBudget: 2 });
-  const [spikeAlerts, setSpikeAlerts] = useState({
-    enabled: true,
-    windowMinutes: 15,
-    threshold: 3
-  });
-  const [templates] = useState(defaultTemplates);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    defaultTemplates[0]?.id ?? ""
+  const [policy, setPolicy] = useState(() => ({
+    ...defaultPolicy,
+    ...(initialStoredState?.policy ?? {})
+  }));
+  const [pinnedLogs, setPinnedLogs] = useState<string[]>(
+    () => initialStoredState?.pinnedLogs ?? []
   );
-  const [autoApproveRisk, setAutoApproveRisk] = useState("medium");
+  const [streaming, setStreaming] = useState(false);
+  const streamIntervalRef = useRef<number | null>(null);
+  const [logBudget, setLogBudget] = useState(
+    () => initialStoredState?.logBudget ?? defaultLogBudget
+  );
+  const [spikeAlerts, setSpikeAlerts] = useState(
+    () => initialStoredState?.spikeAlerts ?? defaultSpikeAlerts
+  );
+  const [templates] = useState(defaultTemplates);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(() => {
+    return initialStoredState?.selectedTemplateId ?? (defaultTemplates[0]?.id ?? "");
+  });
+  const [autoApproveRisk, setAutoApproveRisk] = useState<Approval["risk"]>("medium");
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const getStorage = () => {
-    if (typeof window === "undefined") return null;
-    if (!("localStorage" in window)) return null;
-    if (typeof window.localStorage.getItem !== "function") return null;
-    return window.localStorage;
-  };
-
-  useEffect(() => {
-    const saved = getStorage()?.getItem(storageKey);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as StoredState;
-      setTheme(parsed.theme ?? "dark");
-      setRunSearch(parsed.runSearch ?? "");
-      setLogSearch(parsed.logSearch ?? "");
-      setLogLevel(parsed.logLevel ?? "all");
-      setLogAgent(parsed.logAgent ?? "all");
-      setPinnedLogs(parsed.pinnedLogs ?? []);
-      setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
-      setSpikeAlerts(parsed.spikeAlerts ?? { enabled: true, windowMinutes: 15, threshold: 3 });
-      setLogBudget(parsed.logBudget ?? { warnBudget: 5, errorBudget: 2 });
-      setSelectedTemplateId(parsed.selectedTemplateId ?? (defaultTemplates[0]?.id ?? ""));
-    } catch {
-      // ignore corrupted state
-    }
+  const queueRun = useCallback((source?: string) => {
+    setBanner(
+      source
+        ? `Queued a new swarm run from ${source}. Approval required for external tools.`
+        : "Queued a new swarm run. Approval required for external tools."
+    );
   }, []);
 
   useEffect(() => {
@@ -194,7 +250,7 @@ export default function App() {
 
   useEffect(() => {
     const storage = getStorage();
-    if (!storage) return;
+    if (!storage || typeof storage.setItem !== "function") return;
     const state: StoredState = {
       theme,
       runSearch,
@@ -223,14 +279,15 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "/") {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "/" && !isTypingTarget(event.target)) {
         event.preventDefault();
         const input = document.querySelector<HTMLInputElement>("[data-search]");
         input?.focus();
       }
-      if (event.key.toLowerCase() === "n") {
+      if (event.key.toLowerCase() === "n" && !isTypingTarget(event.target)) {
         event.preventDefault();
-        setBanner("Queued a new swarm run. Approval required for external tools.");
+        queueRun();
       }
       if (event.key === "Escape") {
         setSelectedApproval(null);
@@ -239,22 +296,24 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [queueRun]);
 
   useEffect(() => {
     if (!streaming) {
-      if (streamInterval) {
-        window.clearInterval(streamInterval);
-        setStreamInterval(null);
-      }
+      const existing = streamIntervalRef.current;
+      if (existing !== null) window.clearInterval(existing);
+      streamIntervalRef.current = null;
       return;
     }
     const handle = window.setInterval(() => {
       setBanner("Streaming logs: pulling the latest agent output.");
     }, 5000);
-    setStreamInterval(handle);
-    return () => window.clearInterval(handle);
-  }, [streaming, streamInterval]);
+    streamIntervalRef.current = handle;
+    return () => {
+      window.clearInterval(handle);
+      if (streamIntervalRef.current === handle) streamIntervalRef.current = null;
+    };
+  }, [streaming]);
 
   const filteredRuns = useMemo(() => {
     if (!runSearch.trim()) return runs;
@@ -293,15 +352,7 @@ export default function App() {
       approvals,
       logs
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json"
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "agent-swarm-evidence-pack.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadJson("agent-swarm-evidence-pack.json", payload);
   };
 
   const exportState = () => {
@@ -317,37 +368,41 @@ export default function App() {
       logBudget,
       selectedTemplateId
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json"
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "agent-swarm-state.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadJson("agent-swarm-state.json", payload);
   };
 
   const importState = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as StoredState;
-        setTheme(parsed.theme ?? "dark");
-        setRunSearch(parsed.runSearch ?? "");
-        setLogSearch(parsed.logSearch ?? "");
-        setLogLevel(parsed.logLevel ?? "all");
-        setLogAgent(parsed.logAgent ?? "all");
-        setPinnedLogs(parsed.pinnedLogs ?? []);
-        setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
-        setSpikeAlerts(parsed.spikeAlerts ?? spikeAlerts);
-        setLogBudget(parsed.logBudget ?? logBudget);
-        setSelectedTemplateId(parsed.selectedTemplateId ?? selectedTemplateId);
-        setBanner("Imported workspace state.");
-      } catch {
+      const parsed = safeJsonParse<Partial<StoredState>>(String(reader.result));
+      if (!parsed) {
         setBanner("Import failed. Invalid JSON file.");
+        return;
       }
+
+      const nextTheme =
+        parsed.theme === "light" || parsed.theme === "dark" ? parsed.theme : "dark";
+      const nextLogLevel =
+        parsed.logLevel === "info" ||
+        parsed.logLevel === "warn" ||
+        parsed.logLevel === "error" ||
+        parsed.logLevel === "all"
+          ? parsed.logLevel
+          : "all";
+
+      setTheme(nextTheme);
+      setRunSearch(parsed.runSearch ?? "");
+      setLogSearch(parsed.logSearch ?? "");
+      setLogLevel(nextLogLevel);
+      setLogAgent(parsed.logAgent ?? "all");
+      setPinnedLogs(parsed.pinnedLogs ?? []);
+      setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
+      setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
+      setLogBudget(parsed.logBudget ?? defaultLogBudget);
+      setSelectedTemplateId(parsed.selectedTemplateId ?? (defaultTemplates[0]?.id ?? ""));
+      setBanner("Imported workspace state.");
+      if (importInputRef.current) importInputRef.current.value = "";
     };
     reader.readAsText(file);
   };
@@ -382,10 +437,13 @@ export default function App() {
           <button
             className="ghost"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            type="button"
           >
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </button>
-          <button className="primary">New run</button>
+          <button className="primary" onClick={() => queueRun()} type="button">
+            New run
+          </button>
         </div>
       </header>
 
@@ -467,7 +525,9 @@ export default function App() {
               placeholder="Search runs, owners, statuses"
               aria-label="Search runs"
             />
-            <button className="ghost">Filters</button>
+            <button className="ghost" type="button">
+              Filters
+            </button>
           </div>
           <div className="agent-list">
             {agents.map((agent) => (
@@ -496,7 +556,9 @@ export default function App() {
         <div className="card">
           <div className="card-header">
             <h2>Runs in progress</h2>
-            <button className="ghost">Queue run</button>
+            <button className="ghost" onClick={() => queueRun()} type="button">
+              Queue run
+            </button>
           </div>
           <div className="run-list">
             {filteredRuns.map((run) => (
@@ -533,11 +595,15 @@ export default function App() {
         <div className="card">
           <div className="card-header">
             <h2>Live logs</h2>
-            <div className="header-actions">
-              <button className="ghost" onClick={() => setStreaming((prev) => !prev)}>
+              <div className="header-actions">
+              <button
+                className="ghost"
+                onClick={() => setStreaming((prev) => !prev)}
+                type="button"
+              >
                 {streaming ? "Pause stream" : "Start stream"}
               </button>
-              <button className="ghost" onClick={exportEvidence}>
+              <button className="ghost" onClick={exportEvidence} type="button">
                 Export
               </button>
             </div>
@@ -551,7 +617,7 @@ export default function App() {
             />
             <select
               value={logLevel}
-              onChange={(event) => setLogLevel(event.target.value)}
+              onChange={(event) => setLogLevel(event.target.value as LogLevelFilter)}
               aria-label="Filter by level"
             >
               <option value="all">All levels</option>
@@ -608,6 +674,7 @@ export default function App() {
                   <button
                     className={`pin ${pinnedLogs.includes(log.id) ? "active" : ""}`}
                     onClick={() => togglePin(log.id)}
+                    type="button"
                   >
                     {pinnedLogs.includes(log.id) ? "Pinned" : "Pin"}
                   </button>
@@ -678,7 +745,7 @@ export default function App() {
               <span>Auto-approve up to</span>
               <select
                 value={autoApproveRisk}
-                onChange={(event) => setAutoApproveRisk(event.target.value)}
+                onChange={(event) => setAutoApproveRisk(event.target.value as Approval["risk"])}
               >
                 <option value="low">Low risk</option>
                 <option value="medium">Medium risk</option>
@@ -741,7 +808,13 @@ export default function App() {
                   ))}
                 </ol>
               </div>
-              <button className="primary">Queue from template</button>
+              <button
+                className="primary"
+                onClick={() => queueRun(`template “${selectedTemplate.name}”`)}
+                type="button"
+              >
+                Queue from template
+              </button>
             </div>
           ) : null}
         </div>
@@ -805,8 +878,26 @@ export default function App() {
               </div>
             </div>
             <div className="drawer-actions">
-              <button className="ghost">Deny</button>
-              <button className="primary">Approve</button>
+              <button
+                className="ghost"
+                onClick={() => {
+                  setSelectedApproval(null);
+                  setBanner(`Denied ${selectedApproval.id}.`);
+                }}
+                type="button"
+              >
+                Deny
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  setSelectedApproval(null);
+                  setBanner(`Approved ${selectedApproval.id}.`);
+                }}
+                type="button"
+              >
+                Approve
+              </button>
             </div>
           </div>
         </div>
