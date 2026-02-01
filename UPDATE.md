@@ -13,9 +13,10 @@
   - Start/Pause stream doesn’t spam intervals.
 
 ## PR instructions
-If a PR is not created automatically, run:
+PR: `https://github.com/sarveshkapre/agent-swarm-control-panel/pull/1`
+
+If you need to recreate it:
 - `git checkout -b fix/persistence-hydration`
-- `git commit -am "Fix persistence hydration + add regression tests"`
+- `make check`
 - `git push -u origin fix/persistence-hydration`
 - `gh pr create --fill`
-
