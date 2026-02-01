@@ -19,6 +19,7 @@ import LogsCard from "./components/LogsCard";
 import OverviewSection from "./components/OverviewSection";
 import PolicyModal from "./components/PolicyModal";
 import RunComposerCard from "./components/RunComposerCard";
+import RunDetailDrawer from "./components/RunDetailDrawer";
 import RunTemplatesCard from "./components/RunTemplatesCard";
 import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
@@ -241,6 +242,7 @@ export default function App() {
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(
     null
   );
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [policy, setPolicy] = useState<PolicySettings>(() => ({
     ...defaultPolicy,
@@ -275,6 +277,7 @@ export default function App() {
   const [confirmationToasts, setConfirmationToasts] = useState<ConfirmationToast[]>([]);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const modalPanelRef = useRef<HTMLDivElement>(null);
+  const runDetailPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
   const queueRun = useCallback((source?: string) => {
@@ -285,7 +288,12 @@ export default function App() {
     );
   }, []);
 
-  const overlayOpen = selectedApproval !== null || policyOpen;
+  const overlayOpen = selectedApproval !== null || selectedRun !== null || policyOpen;
+  const activePanelRef = selectedApproval
+    ? drawerPanelRef
+    : selectedRun
+      ? runDetailPanelRef
+      : modalPanelRef;
 
   const runData = useMemo(() => {
     const baseRuns = queuedRuns.length === 0 ? runs : [...queuedRuns, ...runs];
@@ -304,7 +312,7 @@ export default function App() {
       lastActiveElementRef.current =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-      const panel = selectedApproval ? drawerPanelRef.current : modalPanelRef.current;
+      const panel = activePanelRef.current;
       if (!panel) {
         document.body.style.overflow = previousOverflow;
         return;
@@ -328,11 +336,11 @@ export default function App() {
     if (!last) return;
     if (!document.contains(last)) return;
     window.setTimeout(() => last.focus(), 0);
-  }, [overlayOpen, selectedApproval]);
+  }, [overlayOpen, selectedApproval, selectedRun, activePanelRef]);
 
   useEffect(() => {
     if (!overlayOpen) return;
-    const panel = selectedApproval ? drawerPanelRef.current : modalPanelRef.current;
+    const panel = activePanelRef.current;
     if (!panel) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -369,7 +377,7 @@ export default function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [overlayOpen, selectedApproval]);
+  }, [overlayOpen, selectedApproval, selectedRun, activePanelRef]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -414,6 +422,7 @@ export default function App() {
       if (overlayOpen) {
         if (event.key === "Escape") {
           setSelectedApproval(null);
+          setSelectedRun(null);
           setPolicyOpen(false);
         }
         return;
@@ -429,6 +438,7 @@ export default function App() {
       }
       if (event.key === "Escape") {
         setSelectedApproval(null);
+        setSelectedRun(null);
         setPolicyOpen(false);
       }
     };
@@ -571,6 +581,12 @@ export default function App() {
     composerTemplateId === "none"
       ? null
       : templates.find((template) => template.id === composerTemplateId) ?? null;
+  const runDetailLogs = selectedRun
+    ? logs.filter((log) => selectedRun.agents.includes(log.agent)).slice(0, 3)
+    : [];
+  const runDetailApprovals = selectedRun
+    ? approvals.filter((approval) => selectedRun.agents.includes(approval.requestedBy))
+    : [];
 
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -682,6 +698,7 @@ export default function App() {
         runStatusLabel={runStatusLabel}
         onQueueRun={() => queueRun()}
         onRunAction={handleRunAction}
+        onViewDetails={setSelectedRun}
       />
 
       <section className="grid">
@@ -758,6 +775,16 @@ export default function App() {
             setBanner(`Approved ${selectedApproval.id}.`);
           }}
           panelRef={drawerPanelRef}
+        />
+      ) : null}
+
+      {selectedRun ? (
+        <RunDetailDrawer
+          run={selectedRun}
+          logs={runDetailLogs}
+          approvals={runDetailApprovals}
+          onClose={() => setSelectedRun(null)}
+          panelRef={runDetailPanelRef}
         />
       ) : null}
 

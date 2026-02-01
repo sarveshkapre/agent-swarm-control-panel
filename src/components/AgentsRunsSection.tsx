@@ -9,6 +9,7 @@ type AgentsRunsSectionProps = {
   runStatusLabel: Record<RunStatus, string>;
   onQueueRun: () => void;
   onRunAction: (run: Run, action: "pause" | "retry" | "cancel") => void;
+  onViewDetails: (run: Run) => void;
 };
 
 export default function AgentsRunsSection({
@@ -19,7 +20,8 @@ export default function AgentsRunsSection({
   filteredRuns,
   runStatusLabel,
   onQueueRun,
-  onRunAction
+  onRunAction,
+  onViewDetails
 }: AgentsRunsSectionProps) {
   return (
     <section className="grid">
@@ -93,6 +95,13 @@ export default function AgentsRunsSection({
                 </div>
               </div>
               <div className="run-actions">
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => onViewDetails(run)}
+                >
+                  Details
+                </button>
                 <button
                   className="ghost"
                   type="button"

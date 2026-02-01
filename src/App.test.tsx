@@ -194,3 +194,25 @@ it("confirms run actions via toast and updates status", async () => {
   expect(targetRun).not.toBeNull();
   expect(within(targetRun!).getByText(/Waiting/i)).toBeInTheDocument();
 });
+
+it("opens run details with recent logs and approvals", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+
+  const targetRun = within(runList!).getByText(/r-114/i).closest(".run") as
+    | HTMLElement
+    | null;
+  expect(targetRun).not.toBeNull();
+
+  const detailsButton = within(targetRun!).getByRole("button", { name: /Details/i });
+  await act(async () => {
+    await user.click(detailsButton);
+  });
+
+  const dialog = await screen.findByRole("dialog", { name: /Run details/i });
+  expect(within(dialog).getByText(/Pulled 18 relevant sources/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Run open web crawl/i)).toBeInTheDocument();
+});

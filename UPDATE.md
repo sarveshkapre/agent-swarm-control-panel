@@ -8,6 +8,7 @@
 - Added a run composer to queue local runs (with optional templates).
 - Refactored the dashboard into modular components.
 - Added per-run actions with confirmation toasts.
+- Added a run detail drawer with recent logs and approvals.
 
 ## How to verify
 - `make check`
@@ -18,6 +19,7 @@
   - Drawer/modal keep focus inside and restore focus on close.
   - Composer queues a run and it appears in the run list.
   - Pause/Retry/Cancel actions show a toast and update status after confirm.
+  - Run details show recent logs and approvals.
 
 ## Shipping
 - Shipped directly to `main` (no PR).

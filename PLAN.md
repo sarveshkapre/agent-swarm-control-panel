@@ -16,9 +16,10 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Added a run composer to queue local runs with optional templates.
 - Split `src/App.tsx` into focused components for maintainability.
 - Added per-run actions with confirmation toasts.
+- Added a run detail drawer with recent logs and approvals.
 
 ## Next to ship
-- Add run detail view with recent log excerpts and approvals.
+- Add run-level SLA badges and duration tracking.
 
 ## Top risks / unknowns
 - Scope creep without a real backend runtime adapter.
