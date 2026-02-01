@@ -163,6 +163,11 @@ select:focus-visible {
   color: rgba(27, 27, 31, 0.6);
 }
 
+:root[data-theme="light"] .pill.muted {
+  background: rgba(148, 163, 184, 0.25);
+  color: rgba(15, 23, 42, 0.75);
+}
+
 .overview {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
@@ -315,6 +320,11 @@ select {
   color: #9ee6b2;
 }
 
+.pill.muted {
+  background: rgba(148, 163, 184, 0.2);
+  color: rgba(226, 232, 240, 0.8);
+}
+
 .log {
   grid-template-columns: 1.5fr 0.6fr;
 }
@@ -351,6 +361,13 @@ select {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.run-sla {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .run-actions {

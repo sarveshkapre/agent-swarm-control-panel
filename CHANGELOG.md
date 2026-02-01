@@ -14,6 +14,7 @@
 - Run composer for queuing local runs (optional template).
 - Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 - Run detail drawer with recent logs and approvals.
+- Run-level SLA badges and duration tracking.
 
 ## [0.1.0] - 2026-02-01
 ### Added

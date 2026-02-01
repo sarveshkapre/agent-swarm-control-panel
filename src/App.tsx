@@ -576,6 +576,12 @@ export default function App() {
     decision: riskRank(approval.risk) <= autoApproveRank ? "Auto-approve" : "Manual review"
   }));
 
+  const runDurationMinutes: Record<string, number> = {
+    "r-114": 52,
+    "r-113": 38,
+    "r-112": 95
+  };
+
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
   const composerTemplate =
     composerTemplateId === "none"
@@ -587,6 +593,38 @@ export default function App() {
   const runDetailApprovals = selectedRun
     ? approvals.filter((approval) => selectedRun.agents.includes(approval.requestedBy))
     : [];
+
+  const getRunDurationLabel = (run: Run) => {
+    const minutes = runDurationMinutes[run.id];
+    if (typeof minutes === "number") {
+      if (minutes < 60) return `${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+    }
+    if (run.status === "queued") return "Queued now";
+    if (run.status === "waiting") return "Queued";
+    if (run.status === "running") return "In progress";
+    return "—";
+  };
+
+  const getRunSlaBadge = (run: Run) => {
+    const minutes = runDurationMinutes[run.id] ?? 0;
+    if (run.status === "completed") return { label: "Met", tone: "low" as const };
+    if (run.status === "failed") return { label: "Breached", tone: "high" as const };
+    if (run.status === "queued") return { label: "Pending", tone: "muted" as const };
+    if (run.status === "waiting") {
+      return minutes > 30
+        ? { label: "At risk", tone: "medium" as const }
+        : { label: "Waiting", tone: "muted" as const };
+    }
+    if (run.status === "running") {
+      return minutes > 60
+        ? { label: "At risk", tone: "medium" as const }
+        : { label: "On track", tone: "low" as const };
+    }
+    return { label: "—", tone: "muted" as const };
+  };
 
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -699,6 +737,8 @@ export default function App() {
         onQueueRun={() => queueRun()}
         onRunAction={handleRunAction}
         onViewDetails={setSelectedRun}
+        getRunDurationLabel={getRunDurationLabel}
+        getRunSlaBadge={getRunSlaBadge}
       />
 
       <section className="grid">
