@@ -176,6 +176,20 @@ function isTypingTarget(target: EventTarget | null) {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
+function getFocusableElements(container: HTMLElement) {
+  const selector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled]):not([type='hidden'])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])"
+  ].join(",");
+  return Array.from(container.querySelectorAll<HTMLElement>(selector)).filter(
+    (el) => !el.hasAttribute("disabled") && el.tabIndex >= 0
+  );
+}
+
 function downloadJson(filename: string, payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json"
@@ -235,6 +249,9 @@ export default function App() {
   });
   const [autoApproveRisk, setAutoApproveRisk] = useState<Approval["risk"]>("medium");
   const importInputRef = useRef<HTMLInputElement>(null);
+  const drawerPanelRef = useRef<HTMLDivElement>(null);
+  const modalPanelRef = useRef<HTMLDivElement>(null);
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
   const queueRun = useCallback((source?: string) => {
     setBanner(
@@ -243,6 +260,83 @@ export default function App() {
         : "Queued a new swarm run. Approval required for external tools."
     );
   }, []);
+
+  const overlayOpen = selectedApproval !== null || policyOpen;
+
+  useEffect(() => {
+    if (overlayOpen) {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+
+      lastActiveElementRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      const panel = selectedApproval ? drawerPanelRef.current : modalPanelRef.current;
+      if (!panel) {
+        document.body.style.overflow = previousOverflow;
+        return;
+      }
+
+      window.setTimeout(() => {
+        const focusables = getFocusableElements(panel);
+        const next = focusables[0];
+        if (next) {
+          next.focus();
+          return;
+        }
+        panel.focus();
+      }, 0);
+      return () => {
+        document.body.style.overflow = previousOverflow;
+      };
+    }
+
+    const last = lastActiveElementRef.current;
+    if (!last) return;
+    if (!document.contains(last)) return;
+    window.setTimeout(() => last.focus(), 0);
+  }, [overlayOpen, selectedApproval]);
+
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const panel = selectedApproval ? drawerPanelRef.current : modalPanelRef.current;
+    if (!panel) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusables = getFocusableElements(panel);
+      if (focusables.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      const active = document.activeElement;
+
+      if (event.shiftKey) {
+        if (active === first || !(active instanceof HTMLElement) || !panel.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [overlayOpen, selectedApproval]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -280,6 +374,13 @@ export default function App() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (overlayOpen) {
+        if (event.key === "Escape") {
+          setSelectedApproval(null);
+          setPolicyOpen(false);
+        }
+        return;
+      }
       if (event.key === "/" && !isTypingTarget(event.target)) {
         event.preventDefault();
         const input = document.querySelector<HTMLInputElement>("[data-search]");
@@ -296,7 +397,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [queueRun]);
+  }, [overlayOpen, queueRun]);
 
   useEffect(() => {
     if (!streaming) {
@@ -710,15 +811,20 @@ export default function App() {
             </div>
           </div>
           <div className="control-actions">
-            <button className="primary" onClick={() => setPolicyOpen(true)}>
+            <button
+              className="primary"
+              onClick={() => setPolicyOpen(true)}
+              type="button"
+            >
               Open policy editor
             </button>
-            <button className="ghost" onClick={exportState}>
+            <button className="ghost" onClick={exportState} type="button">
               Export state
             </button>
             <button
               className="ghost"
               onClick={() => importInputRef.current?.click()}
+              type="button"
             >
               Import state
             </button>
@@ -821,11 +927,28 @@ export default function App() {
       </section>
 
       {selectedApproval ? (
-        <div className="drawer" role="dialog" aria-modal="true">
-          <div className="drawer-panel">
+        <div className="drawer">
+          <button
+            className="overlay-close"
+            type="button"
+            aria-label="Close approval drawer"
+            onClick={() => setSelectedApproval(null)}
+          />
+          <div
+            className="drawer-panel"
+            ref={drawerPanelRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="drawer-title"
+          >
             <div className="drawer-header">
-              <h2>Approval request</h2>
-              <button className="ghost" onClick={() => setSelectedApproval(null)}>
+              <h2 id="drawer-title">Approval request</h2>
+              <button
+                className="ghost"
+                onClick={() => setSelectedApproval(null)}
+                type="button"
+              >
                 Close
               </button>
             </div>
@@ -904,11 +1027,24 @@ export default function App() {
       ) : null}
 
       {policyOpen ? (
-        <div className="modal" role="dialog" aria-modal="true">
-          <div className="modal-panel">
+        <div className="modal">
+          <button
+            className="overlay-close"
+            type="button"
+            aria-label="Close policy editor"
+            onClick={() => setPolicyOpen(false)}
+          />
+          <div
+            className="modal-panel"
+            ref={modalPanelRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="policy-title"
+          >
             <div className="drawer-header">
-              <h2>Policy editor</h2>
-              <button className="ghost" onClick={() => setPolicyOpen(false)}>
+              <h2 id="policy-title">Policy editor</h2>
+              <button className="ghost" onClick={() => setPolicyOpen(false)} type="button">
                 Close
               </button>
             </div>

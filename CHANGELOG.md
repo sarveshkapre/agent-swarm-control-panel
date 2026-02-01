@@ -5,9 +5,11 @@
 - Prevent localStorage-backed UI state from being clobbered on first render.
 - Make log streaming interval lifecycle robust (no duplicate intervals / leaks).
 - Harden JSON import/export paths and error handling.
+- Trap focus within overlays, restore focus on close, and disable background scroll.
 
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
+- Regression tests for drawer/modal focus management.
 
 ## [0.1.0] - 2026-02-01
 ### Added
@@ -21,4 +23,3 @@
 - Approval policy simulation and auto-approve preview
 - Run templates with playbook steps
 - Log streaming controls and spike alert summary
-

@@ -469,6 +469,16 @@ select {
   align-items: center;
 }
 
+.overlay-close {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.overlay-close:focus-visible {
+  outline: none;
+}
+
 .drawer-panel {
   width: min(480px, 92vw);
   background: rgba(12, 16, 24, 0.98);
