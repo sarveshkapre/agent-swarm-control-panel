@@ -7,6 +7,7 @@ import type {
   LogBudget,
   PolicySettings,
   Run,
+  RunPhase,
   RunStatus,
   SpikeAlerts
 } from "./types";
@@ -582,6 +583,30 @@ export default function App() {
     "r-112": 95
   };
 
+  const runPhaseTimeline: Record<string, RunPhase[]> = {
+    "r-114": [
+      { label: "Queued", status: "done", time: "09:12", note: "Run accepted" },
+      { label: "Planning", status: "done", time: "09:15", note: "Playbook assigned" },
+      { label: "Execution", status: "current", time: "09:24", note: "3 tasks running" },
+      { label: "Review", status: "upcoming", note: "Awaiting QA pass" },
+      { label: "Complete", status: "upcoming" }
+    ],
+    "r-113": [
+      { label: "Queued", status: "done", time: "08:02", note: "Run accepted" },
+      { label: "Planning", status: "current", time: "08:11", note: "Waiting on approval" },
+      { label: "Execution", status: "upcoming" },
+      { label: "Review", status: "upcoming" },
+      { label: "Complete", status: "upcoming" }
+    ],
+    "r-112": [
+      { label: "Queued", status: "done", time: "Yesterday 13:40" },
+      { label: "Planning", status: "done", time: "Yesterday 13:55" },
+      { label: "Execution", status: "done", time: "Yesterday 14:20" },
+      { label: "Review", status: "done", time: "Yesterday 15:02" },
+      { label: "Complete", status: "done", time: "Yesterday 15:22", note: "Evidence pack exported" }
+    ]
+  };
+
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
   const composerTemplate =
     composerTemplateId === "none"
@@ -625,6 +650,35 @@ export default function App() {
     }
     return { label: "—", tone: "muted" as const };
   };
+
+  const buildDefaultTimeline = (run: Run): RunPhase[] => {
+    const phaseLabels = ["Queued", "Planning", "Execution", "Review", "Complete"];
+    const statusIndexMap: Record<RunStatus, number> = {
+      queued: 0,
+      waiting: 1,
+      running: 2,
+      failed: 2,
+      completed: 4
+    };
+    const currentIndex = statusIndexMap[run.status] ?? 0;
+    return phaseLabels.map((label, index) => {
+      if (run.status === "completed") {
+        return { label, status: "done" };
+      }
+      if (run.status === "failed" && index === currentIndex) {
+        return { label, status: "blocked", note: "Needs intervention" };
+      }
+      if (index < currentIndex) {
+        return { label, status: "done" };
+      }
+      if (index === currentIndex) {
+        return { label, status: "current" };
+      }
+      return { label, status: "upcoming" };
+    });
+  };
+
+  const getRunTimeline = (run: Run) => runPhaseTimeline[run.id] ?? buildDefaultTimeline(run);
 
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -823,6 +877,7 @@ export default function App() {
           run={selectedRun}
           logs={runDetailLogs}
           approvals={runDetailApprovals}
+          timeline={getRunTimeline(selectedRun)}
           onClose={() => setSelectedRun(null)}
           panelRef={runDetailPanelRef}
         />

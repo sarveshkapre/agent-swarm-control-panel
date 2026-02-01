@@ -10,6 +10,7 @@
 - Added per-run actions with confirmation toasts.
 - Added a run detail drawer with recent logs and approvals.
 - Added run-level SLA badges with duration tracking.
+- Added run phase timeline inside run details.
 
 ## How to verify
 - `make check`
@@ -22,6 +23,7 @@
   - Pause/Retry/Cancel actions show a toast and update status after confirm.
   - Run details show recent logs and approvals.
   - Runs display SLA badge and duration status.
+  - Run details show the phase timeline.
 
 ## Shipping
 - Shipped directly to `main` (no PR).

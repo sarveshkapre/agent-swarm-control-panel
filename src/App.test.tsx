@@ -215,4 +215,6 @@ it("opens run details with recent logs and approvals", async () => {
   const dialog = await screen.findByRole("dialog", { name: /Run details/i });
   expect(within(dialog).getByText(/Pulled 18 relevant sources/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Run open web crawl/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Timeline/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Execution/i)).toBeInTheDocument();
 });

@@ -12,6 +12,15 @@ export type Agent = {
 
 export type RunStatus = "queued" | "running" | "waiting" | "failed" | "completed";
 
+export type RunPhaseStatus = "done" | "current" | "upcoming" | "blocked";
+
+export type RunPhase = {
+  label: string;
+  status: RunPhaseStatus;
+  time?: string;
+  note?: string;
+};
+
 export type Run = {
   id: string;
   objective: string;

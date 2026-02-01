@@ -1,10 +1,11 @@
 import type { RefObject } from "react";
-import type { Approval, LogEntry, Run } from "../types";
+import type { Approval, LogEntry, Run, RunPhase } from "../types";
 
 type RunDetailDrawerProps = {
   run: Run;
   logs: LogEntry[];
   approvals: Approval[];
+  timeline: RunPhase[];
   onClose: () => void;
   panelRef: RefObject<HTMLDivElement>;
 };
@@ -13,6 +14,7 @@ export default function RunDetailDrawer({
   run,
   logs,
   approvals,
+  timeline,
   onClose,
   panelRef
 }: RunDetailDrawerProps) {
@@ -52,6 +54,25 @@ export default function RunDetailDrawer({
           <div className="drawer-section">
             <h4>Agents</h4>
             <p className="muted">{run.agents.join(", ")}</p>
+          </div>
+          <div className="drawer-section">
+            <h4>Timeline</h4>
+            <ul className="timeline">
+              {timeline.map((phase) => {
+                const detail = [phase.time, phase.note].filter(Boolean).join(" · ");
+                return (
+                  <li key={phase.label} className={`timeline-item ${phase.status}`}>
+                    <span className="timeline-marker" aria-hidden="true" />
+                    <div>
+                      <p className="approval-title">{phase.label}</p>
+                      <p className="muted">
+                        {detail || (phase.status === "upcoming" ? "Pending" : "—")}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           <div className="drawer-section">
             <h4>Recent logs</h4>

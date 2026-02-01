@@ -629,6 +629,57 @@ select {
   gap: 6px;
 }
 
+.timeline {
+  margin: 0;
+  padding: 0 0 0 18px;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+  border-left: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.timeline-marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-left: -24px;
+  margin-top: 6px;
+  border: 2px solid rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.timeline-item.done .timeline-marker {
+  background: rgba(158, 230, 178, 0.9);
+  border-color: rgba(158, 230, 178, 0.9);
+}
+
+.timeline-item.current .timeline-marker {
+  background: rgba(122, 208, 255, 0.9);
+  border-color: rgba(122, 208, 255, 0.9);
+  box-shadow: 0 0 0 4px rgba(122, 208, 255, 0.2);
+}
+
+.timeline-item.blocked .timeline-marker {
+  background: rgba(255, 139, 139, 0.9);
+  border-color: rgba(255, 139, 139, 0.9);
+}
+
+:root[data-theme="light"] .timeline {
+  border-left: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+:root[data-theme="light"] .timeline-marker {
+  border-color: rgba(15, 23, 42, 0.25);
+  background: rgba(15, 23, 42, 0.08);
+}
+
 .drawer-actions {
   display: flex;
   justify-content: flex-end;
