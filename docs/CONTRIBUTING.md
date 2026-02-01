@@ -1,0 +1,11 @@
+# CONTRIBUTING
+
+## Development
+1. Fork the repo
+2. Create a feature branch
+3. Run `make check`
+4. Open a PR with context and screenshots if UI changes
+
+## Code style
+- TypeScript strict mode
+- Keep UI accessible and keyboard-friendly
