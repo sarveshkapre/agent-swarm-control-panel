@@ -217,4 +217,6 @@ it("opens run details with recent logs and approvals", async () => {
   expect(within(dialog).getByText(/Run open web crawl/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Timeline/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Execution/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Activity feed/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Kickoff briefing delivered/i)).toBeInTheDocument();
 });

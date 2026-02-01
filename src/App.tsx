@@ -7,6 +7,7 @@ import type {
   LogBudget,
   PolicySettings,
   Run,
+  RunActivity,
   RunPhase,
   RunStatus,
   SpikeAlerts
@@ -607,6 +608,64 @@ export default function App() {
     ]
   };
 
+  const runActivityFeed: Record<string, RunActivity[]> = {
+    "r-114": [
+      {
+        id: "act-114-1",
+        title: "Kickoff briefing delivered",
+        detail: "Atlas posted briefing in #swarm-launch.",
+        timestamp: "09:14",
+        type: "milestone"
+      },
+      {
+        id: "act-114-2",
+        title: "Approval requested",
+        detail: "Nova requested write access to staging repo.",
+        timestamp: "09:18",
+        type: "approval"
+      },
+      {
+        id: "act-114-3",
+        title: "Automation step running",
+        detail: "Kite executing onboarding checklist.",
+        timestamp: "09:24",
+        type: "agent"
+      }
+    ],
+    "r-113": [
+      {
+        id: "act-113-1",
+        title: "Research queue created",
+        detail: "Horizon assembled competitor list (12 targets).",
+        timestamp: "08:04",
+        type: "milestone"
+      },
+      {
+        id: "act-113-2",
+        title: "Approval pending",
+        detail: "Waiting on open web crawl approval.",
+        timestamp: "08:11",
+        type: "approval"
+      }
+    ],
+    "r-112": [
+      {
+        id: "act-112-1",
+        title: "Regression suite complete",
+        detail: "Kite finished 18/18 critical paths.",
+        timestamp: "Yesterday 14:48",
+        type: "milestone"
+      },
+      {
+        id: "act-112-2",
+        title: "Evidence pack generated",
+        detail: "Exported bundle to compliance share.",
+        timestamp: "Yesterday 15:22",
+        type: "system"
+      }
+    ]
+  };
+
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
   const composerTemplate =
     composerTemplateId === "none"
@@ -679,6 +738,7 @@ export default function App() {
   };
 
   const getRunTimeline = (run: Run) => runPhaseTimeline[run.id] ?? buildDefaultTimeline(run);
+  const getRunActivityFeed = (run: Run) => runActivityFeed[run.id] ?? [];
 
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -878,6 +938,7 @@ export default function App() {
           logs={runDetailLogs}
           approvals={runDetailApprovals}
           timeline={getRunTimeline(selectedRun)}
+          activity={getRunActivityFeed(selectedRun)}
           onClose={() => setSelectedRun(null)}
           panelRef={runDetailPanelRef}
         />

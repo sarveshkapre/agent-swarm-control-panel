@@ -21,6 +21,16 @@ export type RunPhase = {
   note?: string;
 };
 
+export type RunActivityType = "milestone" | "agent" | "system" | "approval" | "alert";
+
+export type RunActivity = {
+  id: string;
+  title: string;
+  detail: string;
+  timestamp: string;
+  type: RunActivityType;
+};
+
 export type Run = {
   id: string;
   objective: string;

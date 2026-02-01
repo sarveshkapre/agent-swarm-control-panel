@@ -1,11 +1,12 @@
 import type { RefObject } from "react";
-import type { Approval, LogEntry, Run, RunPhase } from "../types";
+import type { Approval, LogEntry, Run, RunActivity, RunPhase } from "../types";
 
 type RunDetailDrawerProps = {
   run: Run;
   logs: LogEntry[];
   approvals: Approval[];
   timeline: RunPhase[];
+  activity: RunActivity[];
   onClose: () => void;
   panelRef: RefObject<HTMLDivElement>;
 };
@@ -15,6 +16,7 @@ export default function RunDetailDrawer({
   logs,
   approvals,
   timeline,
+  activity,
   onClose,
   panelRef
 }: RunDetailDrawerProps) {
@@ -101,6 +103,26 @@ export default function RunDetailDrawer({
                     <p className="muted">
                       {approval.requestedBy} · {approval.scope}
                     </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="drawer-section">
+            <h4>Activity feed</h4>
+            {activity.length === 0 ? (
+              <p className="muted">No recent activity logged.</p>
+            ) : (
+              <ul className="activity">
+                {activity.map((item) => (
+                  <li key={item.id} className="activity-item">
+                    <span className={`pill ${item.type}`}>{item.type}</span>
+                    <div>
+                      <p className="approval-title">{item.title}</p>
+                      <p className="muted">
+                        {item.detail} · {item.timestamp}
+                      </p>
+                    </div>
                   </li>
                 ))}
               </ul>

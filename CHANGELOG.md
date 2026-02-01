@@ -16,6 +16,7 @@
 - Run detail drawer with recent logs and approvals.
 - Run-level SLA badges and duration tracking.
 - Run phase timeline inside the run detail drawer.
+- Per-run activity feed with key events.
 
 ## [0.1.0] - 2026-02-01
 ### Added

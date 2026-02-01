@@ -11,6 +11,7 @@
 - Added a run detail drawer with recent logs and approvals.
 - Added run-level SLA badges with duration tracking.
 - Added run phase timeline inside run details.
+- Added a per-run activity feed with key events.
 
 ## How to verify
 - `make check`
@@ -24,6 +25,7 @@
   - Run details show recent logs and approvals.
   - Runs display SLA badge and duration status.
   - Run details show the phase timeline.
+  - Run details show the activity feed.
 
 ## Shipping
 - Shipped directly to `main` (no PR).

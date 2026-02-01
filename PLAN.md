@@ -19,9 +19,10 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Added a run detail drawer with recent logs and approvals.
 - Added SLA badges and duration tracking for runs.
 - Added a run phase timeline to the run detail drawer.
+- Added per-run activity feed with key events.
 
 ## Next to ship
-- Add per-run activity feed with key events.
+- Add a run health summary (errors, approvals pending, budget).
 
 ## Top risks / unknowns
 - Scope creep without a real backend runtime adapter.

@@ -680,6 +680,60 @@ select {
   background: rgba(15, 23, 42, 0.08);
 }
 
+.activity {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.activity-item .pill {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.65rem;
+  padding: 4px 10px;
+}
+
+.pill.milestone {
+  background: rgba(122, 208, 255, 0.2);
+  color: #7ad0ff;
+}
+
+.pill.agent {
+  background: rgba(158, 230, 178, 0.18);
+  color: #9ee6b2;
+}
+
+.pill.system {
+  background: rgba(186, 168, 255, 0.2);
+  color: #baa8ff;
+}
+
+.pill.approval {
+  background: rgba(244, 198, 122, 0.2);
+  color: #f4c67a;
+}
+
+.pill.alert {
+  background: rgba(255, 139, 139, 0.22);
+  color: #ff8b8b;
+}
+
+:root[data-theme="light"] .activity-item {
+  background: rgba(15, 23, 42, 0.05);
+}
+
 .drawer-actions {
   display: flex;
   justify-content: flex-end;
