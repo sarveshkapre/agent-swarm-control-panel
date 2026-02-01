@@ -408,6 +408,23 @@ select {
   align-items: center;
 }
 
+.composer {
+  display: grid;
+  gap: 12px;
+}
+
+.composer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.composer-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .template-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -611,6 +628,15 @@ select {
 
   .template-grid {
     grid-template-columns: 1fr;
+  }
+
+  .composer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .budget-row {

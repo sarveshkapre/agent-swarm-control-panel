@@ -141,3 +141,30 @@ it("traps focus inside the policy modal and restores focus on close", async () =
   fireEvent.click(overlayClose);
   await waitFor(() => expect(openPolicy).toHaveFocus());
 });
+
+it("queues a run from the composer and shows it in the list", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const composer = screen.getByRole("form", { name: /Run composer/i });
+  const objectiveInput = within(composer).getByLabelText(/Objective/i);
+  await act(async () => {
+    await user.type(objectiveInput, "Investigate customer churn spikes");
+  });
+
+  await act(async () => {
+    await user.selectOptions(
+      within(composer).getByLabelText(/Owner/i),
+      "Research"
+    );
+  });
+
+  await act(async () => {
+    await user.click(within(composer).getByRole("button", { name: /Queue run/i }));
+  });
+
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+  expect(within(runList!).getByText(/Investigate customer churn spikes/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/Queued/i).length).toBeGreaterThan(0);
+});

@@ -13,9 +13,9 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Fixed state hydration so localStorage state no longer gets overwritten on initial mount.
 - Hardened import/export + log streaming interval lifecycle; added focused regression tests.
 - Added focus trap + focus restore for drawer and policy modal.
+- Added a run composer to queue local runs with optional templates.
 
 ## Next to ship
-- Run composer (queue a run from template or custom objective) stored locally.
 - Split `src/App.tsx` into small components without changing behavior.
 
 ## Top risks / unknowns

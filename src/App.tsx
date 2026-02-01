@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { agents, approvals, logs, runs } from "./data/mockData";
-import type { AgentStatus, Approval, RunStatus } from "./types";
+import type { AgentStatus, Approval, Run, RunStatus } from "./types";
 
 type LogLevelFilter = "all" | "info" | "warn" | "error";
 
@@ -62,6 +63,7 @@ type StoredState = {
   logLevel: LogLevelFilter;
   logAgent: string;
   pinnedLogs: string[];
+  queuedRuns: Run[];
   policy: {
     mode: string;
     sandbox: string;
@@ -232,6 +234,9 @@ export default function App() {
     ...defaultPolicy,
     ...(initialStoredState?.policy ?? {})
   }));
+  const [queuedRuns, setQueuedRuns] = useState<Run[]>(
+    () => initialStoredState?.queuedRuns ?? []
+  );
   const [pinnedLogs, setPinnedLogs] = useState<string[]>(
     () => initialStoredState?.pinnedLogs ?? []
   );
@@ -248,6 +253,9 @@ export default function App() {
     return initialStoredState?.selectedTemplateId ?? (defaultTemplates[0]?.id ?? "");
   });
   const [autoApproveRisk, setAutoApproveRisk] = useState<Approval["risk"]>("medium");
+  const [composerObjective, setComposerObjective] = useState("");
+  const [composerOwner, setComposerOwner] = useState("Ops");
+  const [composerTemplateId, setComposerTemplateId] = useState("none");
   const importInputRef = useRef<HTMLInputElement>(null);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const modalPanelRef = useRef<HTMLDivElement>(null);
@@ -262,6 +270,11 @@ export default function App() {
   }, []);
 
   const overlayOpen = selectedApproval !== null || policyOpen;
+
+  const runData = useMemo(() => {
+    if (queuedRuns.length === 0) return runs;
+    return [...queuedRuns, ...runs];
+  }, [queuedRuns]);
 
   useEffect(() => {
     if (overlayOpen) {
@@ -352,6 +365,7 @@ export default function App() {
       logLevel,
       logAgent,
       pinnedLogs,
+      queuedRuns,
       policy,
       spikeAlerts,
       logBudget,
@@ -365,6 +379,7 @@ export default function App() {
     logLevel,
     logAgent,
     pinnedLogs,
+    queuedRuns,
     policy,
     spikeAlerts,
     logBudget,
@@ -417,14 +432,14 @@ export default function App() {
   }, [streaming]);
 
   const filteredRuns = useMemo(() => {
-    if (!runSearch.trim()) return runs;
+    if (!runSearch.trim()) return runData;
     const value = runSearch.trim().toLowerCase();
-    return runs.filter((run) =>
+    return runData.filter((run) =>
       [run.objective, run.owner, run.status, run.id].some((field) =>
         field.toLowerCase().includes(value)
       )
     );
-  }, [runSearch]);
+  }, [runSearch, runData]);
 
   const filteredLogs = useMemo(() => {
     const value = logSearch.trim().toLowerCase();
@@ -464,6 +479,7 @@ export default function App() {
       logLevel,
       logAgent,
       pinnedLogs,
+      queuedRuns,
       policy,
       spikeAlerts,
       logBudget,
@@ -498,6 +514,7 @@ export default function App() {
       setLogLevel(nextLogLevel);
       setLogAgent(parsed.logAgent ?? "all");
       setPinnedLogs(parsed.pinnedLogs ?? []);
+      setQueuedRuns(parsed.queuedRuns ?? []);
       setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
       setLogBudget(parsed.logBudget ?? defaultLogBudget);
@@ -526,6 +543,39 @@ export default function App() {
   }));
 
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  const composerTemplate =
+    composerTemplateId === "none"
+      ? null
+      : templates.find((template) => template.id === composerTemplateId) ?? null;
+
+  const submitComposer = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedObjective = composerObjective.trim();
+    if (!trimmedObjective) {
+      setBanner("Add a run objective before queuing.");
+      return;
+    }
+
+    const nextRun: Run = {
+      id: `r-${Date.now()}`,
+      objective: trimmedObjective,
+      owner: composerOwner,
+      startedAt: "Just now",
+      status: "queued",
+      agents: composerTemplate?.agents ?? ["TBD"],
+      costEstimate: composerTemplate?.estCost ?? "—",
+      tokens: "—"
+    };
+
+    setQueuedRuns((prev) => [nextRun, ...prev]);
+    setComposerObjective("");
+    setComposerTemplateId("none");
+    setBanner(
+      composerTemplate
+        ? `Queued run from ${composerTemplate.name}.`
+        : `Queued run: ${trimmedObjective}.`
+    );
+  };
 
   return (
     <div className="app">
@@ -879,8 +929,78 @@ export default function App() {
         </div>
         <div className="card">
           <div className="card-header">
+            <h2>Run composer</h2>
+            <span className="hint">Queue a run with saved defaults.</span>
+          </div>
+          <form className="composer" onSubmit={submitComposer} aria-label="Run composer">
+            <div className="field">
+              <label htmlFor="composer-objective">Objective</label>
+              <input
+                id="composer-objective"
+                value={composerObjective}
+                onChange={(event) => setComposerObjective(event.target.value)}
+                placeholder="Define the outcome"
+                required
+              />
+            </div>
+            <div className="composer-grid">
+              <div className="field">
+                <label htmlFor="composer-owner">Owner</label>
+                <select
+                  id="composer-owner"
+                  value={composerOwner}
+                  onChange={(event) => setComposerOwner(event.target.value)}
+                >
+                  <option value="Ops">Ops</option>
+                  <option value="Research">Research</option>
+                  <option value="QA">QA</option>
+                  <option value="Security">Security</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="composer-template">Template</label>
+                <select
+                  id="composer-template"
+                  value={composerTemplateId}
+                  onChange={(event) => setComposerTemplateId(event.target.value)}
+                >
+                  <option value="none">No template</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="composer-actions">
+              <button className="primary" type="submit">
+                Queue run
+              </button>
+              <button
+                className="ghost"
+                type="button"
+                onClick={() => {
+                  setComposerObjective("");
+                  setComposerOwner("Ops");
+                  setComposerTemplateId("none");
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </form>
+        </div>
+        <div className="card">
+          <div className="card-header">
             <h2>Run templates</h2>
-            <button className="ghost" onClick={() => setBanner("Saved new playbook draft.")}>New template</button>
+            <button
+              className="ghost"
+              onClick={() => setBanner("Saved new playbook draft.")}
+              type="button"
+            >
+              New template
+            </button>
           </div>
           <div className="template-grid">
             {templates.map((template) => (
