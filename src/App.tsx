@@ -1,7 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { agents, approvals, logs, runs } from "./data/mockData";
-import type { AgentStatus, Approval, Run, RunStatus } from "./types";
+import type {
+  AgentStatus,
+  Approval,
+  LogBudget,
+  PolicySettings,
+  Run,
+  RunStatus,
+  SpikeAlerts
+} from "./types";
+import ApprovalDrawer from "./components/ApprovalDrawer";
+import ApprovalSimulationCard from "./components/ApprovalSimulationCard";
+import AgentsRunsSection from "./components/AgentsRunsSection";
+import Banner from "./components/Banner";
+import ControlSurfaceCard from "./components/ControlSurfaceCard";
+import LogsCard from "./components/LogsCard";
+import OverviewSection from "./components/OverviewSection";
+import PolicyModal from "./components/PolicyModal";
+import RunComposerCard from "./components/RunComposerCard";
+import RunTemplatesCard from "./components/RunTemplatesCard";
+import TopBar from "./components/TopBar";
 
 type LogLevelFilter = "all" | "info" | "warn" | "error";
 
@@ -64,33 +83,16 @@ type StoredState = {
   logAgent: string;
   pinnedLogs: string[];
   queuedRuns: Run[];
-  policy: {
-    mode: string;
-    sandbox: string;
-    timeouts: string;
-    requireCitations: boolean;
-    allowExternal: boolean;
-    allowRepoWrites: boolean;
-    allowDeploy: boolean;
-    piiRedaction: boolean;
-    evidenceBundle: boolean;
-  };
-  spikeAlerts: {
-    enabled: boolean;
-    windowMinutes: number;
-    threshold: number;
-  };
-  logBudget: {
-    warnBudget: number;
-    errorBudget: number;
-  };
+  policy: PolicySettings;
+  spikeAlerts: SpikeAlerts;
+  logBudget: LogBudget;
   selectedTemplateId: string;
 };
 
-const defaultLogBudget = { warnBudget: 5, errorBudget: 2 };
-const defaultSpikeAlerts = { enabled: true, windowMinutes: 15, threshold: 3 };
+const defaultLogBudget: LogBudget = { warnBudget: 5, errorBudget: 2 };
+const defaultSpikeAlerts: SpikeAlerts = { enabled: true, windowMinutes: 15, threshold: 3 };
 
-const defaultPolicy: StoredState["policy"] = {
+const defaultPolicy: PolicySettings = {
   mode: "Approve-by-default",
   sandbox: "Workspace only",
   timeouts: "30m hard cap",
@@ -230,7 +232,7 @@ export default function App() {
     null
   );
   const [policyOpen, setPolicyOpen] = useState(false);
-  const [policy, setPolicy] = useState(() => ({
+  const [policy, setPolicy] = useState<PolicySettings>(() => ({
     ...defaultPolicy,
     ...(initialStoredState?.policy ?? {})
   }));
@@ -577,813 +579,128 @@ export default function App() {
     );
   };
 
+  const logAgents = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.agent))),
+    []
+  );
+
   return (
     <div className="app">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Agent Swarm</p>
-          <h1>Control Panel</h1>
-        </div>
-        <div className="topbar-actions">
-          <button
-            className="ghost"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            type="button"
-          >
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </button>
-          <button className="primary" onClick={() => queueRun()} type="button">
-            New run
-          </button>
-        </div>
-      </header>
+      <TopBar
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onNewRun={() => queueRun()}
+      />
 
-      {banner ? (
-        <div className="banner" role="status">
-          <span>{banner}</span>
-          <button className="ghost" onClick={() => setBanner(null)}>
-            Dismiss
-          </button>
-        </div>
-      ) : null}
+      {banner ? <Banner message={banner} onDismiss={() => setBanner(null)} /> : null}
 
-      <section className="overview">
-        <div className="card summary">
-          <h2>Swarm status</h2>
-          <div className="summary-grid">
-            <div>
-              <p className="muted">Active agents</p>
-              <strong>3</strong>
-            </div>
-            <div>
-              <p className="muted">Runs in flight</p>
-              <strong>2</strong>
-            </div>
-            <div>
-              <p className="muted">Approvals waiting</p>
-              <strong>2</strong>
-            </div>
-            <div>
-              <p className="muted">Spend today</p>
-              <strong>$32.11</strong>
-            </div>
-          </div>
-        </div>
-        <div className="card approvals">
-          <div className="card-header">
-            <h2>Approval inbox</h2>
-            <button
-              className="ghost"
-              onClick={() => setSelectedApproval(approvals[0] ?? null)}
-            >
-              View all
-            </button>
-          </div>
-          <ul>
-            {approvals.map((approval) => (
-              <li key={approval.id} className="approval">
-                <button
-                  className="approval-button"
-                  onClick={() => setSelectedApproval(approval)}
-                >
-                  <div>
-                    <p className="approval-title">{approval.title}</p>
-                    <p className="muted">
-                      {approval.requestedBy} · {approval.scope}
-                    </p>
-                  </div>
-                  <div className={`pill ${approval.risk}`}>
-                    {approval.risk.toUpperCase()} · {approval.requestedAt}
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <OverviewSection
+        approvals={approvals}
+        onViewAll={() => setSelectedApproval(approvals[0] ?? null)}
+        onSelectApproval={(approval) => setSelectedApproval(approval)}
+      />
+
+      <AgentsRunsSection
+        agents={agents}
+        statusLabel={statusLabel}
+        runSearch={runSearch}
+        onRunSearchChange={setRunSearch}
+        filteredRuns={filteredRuns}
+        runStatusLabel={runStatusLabel}
+        onQueueRun={() => queueRun()}
+      />
+
+      <section className="grid">
+        <LogsCard
+          logSearch={logSearch}
+          onLogSearchChange={setLogSearch}
+          logLevel={logLevel}
+          onLogLevelChange={(value) => setLogLevel(value as LogLevelFilter)}
+          logAgent={logAgent}
+          onLogAgentChange={setLogAgent}
+          logAgents={logAgents}
+          logBudget={logBudget}
+          spikeAlerts={spikeAlerts}
+          filteredLogs={filteredLogs}
+          pinnedLogs={pinnedLogs}
+          onTogglePin={togglePin}
+          streaming={streaming}
+          onToggleStreaming={() => setStreaming((prev) => !prev)}
+          onExportEvidence={exportEvidence}
+        />
+        <ControlSurfaceCard
+          policy={policy}
+          onOpenPolicy={() => setPolicyOpen(true)}
+          onExportState={exportState}
+          onImportClick={() => importInputRef.current?.click()}
+          onImportFile={importState}
+          importInputRef={importInputRef}
+        />
       </section>
 
       <section className="grid">
-        <div className="card">
-          <div className="card-header">
-            <h2>Active agents</h2>
-            <span className="hint">Press / to search</span>
-          </div>
-          <div className="search-row">
-            <input
-              data-search
-              value={runSearch}
-              onChange={(event) => setRunSearch(event.target.value)}
-              placeholder="Search runs, owners, statuses"
-              aria-label="Search runs"
-            />
-            <button className="ghost" type="button">
-              Filters
-            </button>
-          </div>
-          <div className="agent-list">
-            {agents.map((agent) => (
-              <div key={agent.id} className="agent">
-                <div>
-                  <p className="agent-name">{agent.name}</p>
-                  <p className="muted">
-                    {agent.role} · {agent.model}
-                  </p>
-                </div>
-                <div>
-                  <p className={`status ${agent.status}`}>
-                    {statusLabel[agent.status]}
-                  </p>
-                  <p className="muted">{agent.focus}</p>
-                </div>
-                <div>
-                  <p className="muted">Last active</p>
-                  <p>{agent.lastActive}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h2>Runs in progress</h2>
-            <button className="ghost" onClick={() => queueRun()} type="button">
-              Queue run
-            </button>
-          </div>
-          <div className="run-list">
-            {filteredRuns.map((run) => (
-              <article key={run.id} className="run">
-                <div>
-                  <p className="run-title">{run.objective}</p>
-                  <p className="muted">
-                    {run.id} · {run.owner} · {run.startedAt}
-                  </p>
-                </div>
-                <div className="run-meta">
-                  <div>
-                    <p className={`status ${run.status}`}>
-                      {runStatusLabel[run.status]}
-                    </p>
-                    <p className="muted">Agents: {run.agents.join(", ")}</p>
-                  </div>
-                  <div>
-                    <p className="muted">Est. cost</p>
-                    <p>{run.costEstimate}</p>
-                  </div>
-                  <div>
-                    <p className="muted">Tokens</p>
-                    <p>{run.tokens}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid">
-        <div className="card">
-          <div className="card-header">
-            <h2>Live logs</h2>
-              <div className="header-actions">
-              <button
-                className="ghost"
-                onClick={() => setStreaming((prev) => !prev)}
-                type="button"
-              >
-                {streaming ? "Pause stream" : "Start stream"}
-              </button>
-              <button className="ghost" onClick={exportEvidence} type="button">
-                Export
-              </button>
-            </div>
-          </div>
-          <div className="filters">
-            <input
-              value={logSearch}
-              onChange={(event) => setLogSearch(event.target.value)}
-              placeholder="Search logs"
-              aria-label="Search logs"
-            />
-            <select
-              value={logLevel}
-              onChange={(event) => setLogLevel(event.target.value as LogLevelFilter)}
-              aria-label="Filter by level"
-            >
-              <option value="all">All levels</option>
-              <option value="info">Info</option>
-              <option value="warn">Warn</option>
-              <option value="error">Error</option>
-            </select>
-            <select
-              value={logAgent}
-              onChange={(event) => setLogAgent(event.target.value)}
-              aria-label="Filter by agent"
-            >
-              <option value="all">All agents</option>
-              {Array.from(new Set(logs.map((log) => log.agent))).map((agent) => (
-                <option key={agent} value={agent}>
-                  {agent}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="budget-row">
-            <div>
-              <p className="muted">Warn budget</p>
-              <strong>{logBudget.warnBudget} / hr</strong>
-            </div>
-            <div>
-              <p className="muted">Error budget</p>
-              <strong>{logBudget.errorBudget} / hr</strong>
-            </div>
-            <div>
-              <p className="muted">Spike alerts</p>
-              <strong>
-                {spikeAlerts.enabled
-                  ? `${spikeAlerts.threshold}+ in ${spikeAlerts.windowMinutes}m`
-                  : "Off"}
-              </strong>
-            </div>
-          </div>
-          {spikeAlerts.enabled ? (
-            <div className="alert-card">
-              <p className="muted">Spike alert</p>
-              <strong>3 errors in last 12 minutes · Atlas</strong>
-              <p className="muted">Triggering auto-paused retries.</p>
-            </div>
-          ) : null}
-          <div className="log-list">
-            {filteredLogs.map((log) => (
-              <div key={log.id} className={`log ${log.level}`}>
-                <div>
-                  <p className="log-title">{log.agent}</p>
-                  <p className="muted">{log.message}</p>
-                </div>
-                <div className="log-meta">
-                  <button
-                    className={`pin ${pinnedLogs.includes(log.id) ? "active" : ""}`}
-                    onClick={() => togglePin(log.id)}
-                    type="button"
-                  >
-                    {pinnedLogs.includes(log.id) ? "Pinned" : "Pin"}
-                  </button>
-                  <span className={`pill ${log.level}`}>{log.level}</span>
-                  <span className="muted">{log.timestamp}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card control">
-          <h2>Control surface</h2>
-          <p className="muted">
-            Guardrails are enforced before any agent can touch external tools,
-            files, or deployments.
-          </p>
-          <div className="control-grid">
-            <div>
-              <p className="muted">Policy mode</p>
-              <strong>{policy.mode}</strong>
-            </div>
-            <div>
-              <p className="muted">Sandbox</p>
-              <strong>{policy.sandbox}</strong>
-            </div>
-            <div>
-              <p className="muted">Timeouts</p>
-              <strong>{policy.timeouts}</strong>
-            </div>
-            <div>
-              <p className="muted">Export bundle</p>
-              <strong>{policy.evidenceBundle ? "Evidence pack ready" : "Disabled"}</strong>
-            </div>
-          </div>
-          <div className="control-actions">
-            <button
-              className="primary"
-              onClick={() => setPolicyOpen(true)}
-              type="button"
-            >
-              Open policy editor
-            </button>
-            <button className="ghost" onClick={exportState} type="button">
-              Export state
-            </button>
-            <button
-              className="ghost"
-              onClick={() => importInputRef.current?.click()}
-              type="button"
-            >
-              Import state
-            </button>
-            <input
-              ref={importInputRef}
-              className="file-input"
-              type="file"
-              accept="application/json"
-              onChange={(event) => importState(event.target.files?.[0] ?? null)}
-            />
-          </div>
-          <p className="hint">Tip: Press N to queue a run.</p>
-        </div>
-      </section>
-
-      <section className="grid">
-        <div className="card">
-          <div className="card-header">
-            <h2>Approval policy simulation</h2>
-            <span className="hint">Preview what auto-approves before enabling it.</span>
-          </div>
-          <div className="simulation-controls">
-            <label className="field">
-              <span>Auto-approve up to</span>
-              <select
-                value={autoApproveRisk}
-                onChange={(event) => setAutoApproveRisk(event.target.value as Approval["risk"])}
-              >
-                <option value="low">Low risk</option>
-                <option value="medium">Medium risk</option>
-                <option value="high">High risk</option>
-              </select>
-            </label>
-            <div className="pill muted">Mode: {policy.mode}</div>
-          </div>
-          <div className="simulation-list">
-            {autoApprovalPreview.map((approval) => (
-              <div key={approval.id} className="simulation-item">
-                <div>
-                  <p className="approval-title">{approval.title}</p>
-                  <p className="muted">{approval.scope}</p>
-                </div>
-                <div className="simulation-meta">
-                  <span className={`pill ${approval.risk}`}>{approval.risk}</span>
-                  <span className={`pill ${approval.decision === "Auto-approve" ? "low" : "high"}`}>
-                    {approval.decision}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-header">
-            <h2>Run composer</h2>
-            <span className="hint">Queue a run with saved defaults.</span>
-          </div>
-          <form className="composer" onSubmit={submitComposer} aria-label="Run composer">
-            <div className="field">
-              <label htmlFor="composer-objective">Objective</label>
-              <input
-                id="composer-objective"
-                value={composerObjective}
-                onChange={(event) => setComposerObjective(event.target.value)}
-                placeholder="Define the outcome"
-                required
-              />
-            </div>
-            <div className="composer-grid">
-              <div className="field">
-                <label htmlFor="composer-owner">Owner</label>
-                <select
-                  id="composer-owner"
-                  value={composerOwner}
-                  onChange={(event) => setComposerOwner(event.target.value)}
-                >
-                  <option value="Ops">Ops</option>
-                  <option value="Research">Research</option>
-                  <option value="QA">QA</option>
-                  <option value="Security">Security</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="composer-template">Template</label>
-                <select
-                  id="composer-template"
-                  value={composerTemplateId}
-                  onChange={(event) => setComposerTemplateId(event.target.value)}
-                >
-                  <option value="none">No template</option>
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="composer-actions">
-              <button className="primary" type="submit">
-                Queue run
-              </button>
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => {
-                  setComposerObjective("");
-                  setComposerOwner("Ops");
-                  setComposerTemplateId("none");
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </form>
-        </div>
-        <div className="card">
-          <div className="card-header">
-            <h2>Run templates</h2>
-            <button
-              className="ghost"
-              onClick={() => setBanner("Saved new playbook draft.")}
-              type="button"
-            >
-              New template
-            </button>
-          </div>
-          <div className="template-grid">
-            {templates.map((template) => (
-              <button
-                key={template.id}
-                className={`template-card ${template.id === selectedTemplateId ? "active" : ""}`}
-                onClick={() => setSelectedTemplateId(template.id)}
-              >
-                <div>
-                  <p className="run-title">{template.name}</p>
-                  <p className="muted">{template.objective}</p>
-                </div>
-                <div className="template-meta">
-                  <span className="pill low">{template.agents.join(" · ")}</span>
-                  <span className="pill">{template.estCost}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-          {selectedTemplate ? (
-            <div className="template-detail">
-              <div>
-                <p className="muted">Approvals</p>
-                <strong>{selectedTemplate.approvals.join(", ")}</strong>
-              </div>
-              <div>
-                <p className="muted">Playbook</p>
-                <ol className="stack">
-                  {selectedTemplate.playbook.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-              <button
-                className="primary"
-                onClick={() => queueRun(`template “${selectedTemplate.name}”`)}
-                type="button"
-              >
-                Queue from template
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <ApprovalSimulationCard
+          autoApproveRisk={autoApproveRisk}
+          onAutoApproveRiskChange={setAutoApproveRisk}
+          policyMode={policy.mode}
+          autoApprovalPreview={autoApprovalPreview}
+        />
+        <RunComposerCard
+          objective={composerObjective}
+          owner={composerOwner}
+          templateId={composerTemplateId}
+          templates={templates}
+          onObjectiveChange={setComposerObjective}
+          onOwnerChange={setComposerOwner}
+          onTemplateChange={setComposerTemplateId}
+          onSubmit={submitComposer}
+          onReset={() => {
+            setComposerObjective("");
+            setComposerOwner("Ops");
+            setComposerTemplateId("none");
+          }}
+        />
+        <RunTemplatesCard
+          templates={templates}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={setSelectedTemplateId}
+          selectedTemplate={selectedTemplate}
+          onQueueTemplate={(template) => queueRun(`template “${template.name}”`)}
+          onNewTemplate={() => setBanner("Saved new playbook draft.")}
+        />
       </section>
 
       {selectedApproval ? (
-        <div className="drawer">
-          <button
-            className="overlay-close"
-            type="button"
-            aria-label="Close approval drawer"
-            onClick={() => setSelectedApproval(null)}
-          />
-          <div
-            className="drawer-panel"
-            ref={drawerPanelRef}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="drawer-title"
-          >
-            <div className="drawer-header">
-              <h2 id="drawer-title">Approval request</h2>
-              <button
-                className="ghost"
-                onClick={() => setSelectedApproval(null)}
-                type="button"
-              >
-                Close
-              </button>
-            </div>
-            <div className="drawer-body">
-              <div>
-                <p className="eyebrow">{selectedApproval.id}</p>
-                <h3>{selectedApproval.title}</h3>
-                <p className="muted">
-                  Requested by {selectedApproval.requestedBy} · {selectedApproval.requestedAt}
-                </p>
-                <div className={`pill ${selectedApproval.risk}`}>
-                  {selectedApproval.risk.toUpperCase()} risk
-                </div>
-              </div>
-              <div className="drawer-section">
-                <h4>Scope summary</h4>
-                <p className="muted">{selectedApproval.scope}</p>
-                <div className="diff-list">
-                  {approvalDetail?.scopeDiff.map((item) => (
-                    <div key={item.label} className={`diff ${item.change}`}>
-                      <span>
-                        {item.change === "add"
-                          ? "+"
-                          : item.change === "remove"
-                          ? "-"
-                          : "~"}
-                      </span>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="drawer-section">
-                <h4>Risk notes</h4>
-                <ul className="stack">
-                  {approvalDetail?.riskNotes.map((note) => (
-                    <li key={note} className="muted">
-                      {note}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="drawer-section">
-                <h4>Approval checklist</h4>
-                <ul className="stack">
-                  {approvalDetail?.checklist.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="drawer-actions">
-              <button
-                className="ghost"
-                onClick={() => {
-                  setSelectedApproval(null);
-                  setBanner(`Denied ${selectedApproval.id}.`);
-                }}
-                type="button"
-              >
-                Deny
-              </button>
-              <button
-                className="primary"
-                onClick={() => {
-                  setSelectedApproval(null);
-                  setBanner(`Approved ${selectedApproval.id}.`);
-                }}
-                type="button"
-              >
-                Approve
-              </button>
-            </div>
-          </div>
-        </div>
+        <ApprovalDrawer
+          approval={selectedApproval}
+          approvalDetail={approvalDetail ?? null}
+          onClose={() => setSelectedApproval(null)}
+          onDeny={() => {
+            setSelectedApproval(null);
+            setBanner(`Denied ${selectedApproval.id}.`);
+          }}
+          onApprove={() => {
+            setSelectedApproval(null);
+            setBanner(`Approved ${selectedApproval.id}.`);
+          }}
+          panelRef={drawerPanelRef}
+        />
       ) : null}
 
       {policyOpen ? (
-        <div className="modal">
-          <button
-            className="overlay-close"
-            type="button"
-            aria-label="Close policy editor"
-            onClick={() => setPolicyOpen(false)}
-          />
-          <div
-            className="modal-panel"
-            ref={modalPanelRef}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="policy-title"
-          >
-            <div className="drawer-header">
-              <h2 id="policy-title">Policy editor</h2>
-              <button className="ghost" onClick={() => setPolicyOpen(false)} type="button">
-                Close
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="field">
-                <label htmlFor="policy-mode">Policy mode</label>
-                <select
-                  id="policy-mode"
-                  value={policy.mode}
-                  onChange={(event) =>
-                    setPolicy((prev) => ({ ...prev, mode: event.target.value }))
-                  }
-                >
-                  <option value="Approve-by-default">Approve-by-default</option>
-                  <option value="Approve-on-risk">Approve-on-risk</option>
-                  <option value="Manual-only">Manual-only</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="policy-sandbox">Sandbox</label>
-                <select
-                  id="policy-sandbox"
-                  value={policy.sandbox}
-                  onChange={(event) =>
-                    setPolicy((prev) => ({
-                      ...prev,
-                      sandbox: event.target.value
-                    }))
-                  }
-                >
-                  <option value="Workspace only">Workspace only</option>
-                  <option value="Workspace + network">Workspace + network</option>
-                  <option value="Full system">Full system</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="policy-timeouts">Timeouts</label>
-                <select
-                  id="policy-timeouts"
-                  value={policy.timeouts}
-                  onChange={(event) =>
-                    setPolicy((prev) => ({
-                      ...prev,
-                      timeouts: event.target.value
-                    }))
-                  }
-                >
-                  <option value="30m hard cap">30m hard cap</option>
-                  <option value="60m hard cap">60m hard cap</option>
-                  <option value="90m hard cap">90m hard cap</option>
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="budget-warn">Warn budget (/hr)</label>
-                <input
-                  id="budget-warn"
-                  type="number"
-                  value={logBudget.warnBudget}
-                  onChange={(event) =>
-                    setLogBudget((prev) => ({
-                      ...prev,
-                      warnBudget: Number(event.target.value)
-                    }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="budget-error">Error budget (/hr)</label>
-                <input
-                  id="budget-error"
-                  type="number"
-                  value={logBudget.errorBudget}
-                  onChange={(event) =>
-                    setLogBudget((prev) => ({
-                      ...prev,
-                      errorBudget: Number(event.target.value)
-                    }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="spike-threshold">Spike threshold (errors)</label>
-                <input
-                  id="spike-threshold"
-                  type="number"
-                  value={spikeAlerts.threshold}
-                  onChange={(event) =>
-                    setSpikeAlerts((prev) => ({
-                      ...prev,
-                      threshold: Number(event.target.value)
-                    }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="spike-window">Spike window (minutes)</label>
-                <input
-                  id="spike-window"
-                  type="number"
-                  value={spikeAlerts.windowMinutes}
-                  onChange={(event) =>
-                    setSpikeAlerts((prev) => ({
-                      ...prev,
-                      windowMinutes: Number(event.target.value)
-                    }))
-                  }
-                />
-              </div>
-              <div className="toggle-grid">
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.requireCitations}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        requireCitations: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Require citations</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.allowExternal}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        allowExternal: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Allow external HTTP</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.allowRepoWrites}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        allowRepoWrites: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Allow repo writes</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.allowDeploy}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        allowDeploy: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Allow deploys</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.piiRedaction}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        piiRedaction: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>PII redaction</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={policy.evidenceBundle}
-                    onChange={(event) =>
-                      setPolicy((prev) => ({
-                        ...prev,
-                        evidenceBundle: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Evidence bundles</span>
-                </label>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={spikeAlerts.enabled}
-                    onChange={(event) =>
-                      setSpikeAlerts((prev) => ({
-                        ...prev,
-                        enabled: event.target.checked
-                      }))
-                    }
-                  />
-                  <span>Spike alerts enabled</span>
-                </label>
-              </div>
-            </div>
-            <div className="drawer-actions">
-              <button
-                className="ghost"
-                onClick={() => {
-                  setPolicy(defaultPolicy);
-                  setLogBudget({ warnBudget: 5, errorBudget: 2 });
-                  setSpikeAlerts({ enabled: true, windowMinutes: 15, threshold: 3 });
-                }}
-              >
-                Reset
-              </button>
-              <button className="primary" onClick={() => setPolicyOpen(false)}>
-                Save policy
-              </button>
-            </div>
-          </div>
-        </div>
+        <PolicyModal
+          policy={policy}
+          setPolicy={setPolicy}
+          logBudget={logBudget}
+          setLogBudget={setLogBudget}
+          spikeAlerts={spikeAlerts}
+          setSpikeAlerts={setSpikeAlerts}
+          defaultPolicy={defaultPolicy}
+          defaultLogBudget={defaultLogBudget}
+          defaultSpikeAlerts={defaultSpikeAlerts}
+          onClose={() => setPolicyOpen(false)}
+          panelRef={modalPanelRef}
+        />
       ) : null}
     </div>
   );

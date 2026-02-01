@@ -6,6 +6,7 @@
 - Make log streaming interval lifecycle robust (no duplicate intervals / leaks).
 - Harden JSON import/export paths and error handling.
 - Trap focus within overlays, restore focus on close, and disable background scroll.
+- Split the main dashboard view into modular components.
 
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.

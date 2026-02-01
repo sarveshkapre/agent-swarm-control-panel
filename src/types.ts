@@ -32,6 +32,29 @@ export type Approval = {
   requestedAt: string;
 };
 
+export type PolicySettings = {
+  mode: string;
+  sandbox: string;
+  timeouts: string;
+  requireCitations: boolean;
+  allowExternal: boolean;
+  allowRepoWrites: boolean;
+  allowDeploy: boolean;
+  piiRedaction: boolean;
+  evidenceBundle: boolean;
+};
+
+export type SpikeAlerts = {
+  enabled: boolean;
+  windowMinutes: number;
+  threshold: number;
+};
+
+export type LogBudget = {
+  warnBudget: number;
+  errorBudget: number;
+};
+
 export type LogEntry = {
   id: string;
   agent: string;

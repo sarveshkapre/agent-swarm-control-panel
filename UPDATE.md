@@ -6,6 +6,7 @@
 - Added regression tests for the above.
 - Added focus trap + restore for drawer and policy modal.
 - Added a run composer to queue local runs (with optional templates).
+- Refactored the dashboard into modular components.
 
 ## How to verify
 - `make check`

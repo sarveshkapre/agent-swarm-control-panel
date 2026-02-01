@@ -14,9 +14,10 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Hardened import/export + log streaming interval lifecycle; added focused regression tests.
 - Added focus trap + focus restore for drawer and policy modal.
 - Added a run composer to queue local runs with optional templates.
+- Split `src/App.tsx` into focused components for maintainability.
 
 ## Next to ship
-- Split `src/App.tsx` into small components without changing behavior.
+- Add per-run actions (pause, retry, cancel) with confirmation toasts.
 
 ## Top risks / unknowns
 - Scope creep without a real backend runtime adapter.
