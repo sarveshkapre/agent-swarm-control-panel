@@ -17,6 +17,7 @@
 - Run-level SLA badges and duration tracking.
 - Run phase timeline inside the run detail drawer.
 - Per-run activity feed with key events.
+- Growth momentum dashboard with outcome scorecard, activation loops, integration launchpad, and feedback radar.
 
 ## [0.1.0] - 2026-02-01
 ### Added

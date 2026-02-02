@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { agents, approvals, logs, runs } from "./data/mockData";
+import {
+  activationLoops as defaultActivationLoops,
+  agents,
+  approvals,
+  feedbackSignals as defaultFeedbackSignals,
+  integrationOptions as defaultIntegrationOptions,
+  logs,
+  runs,
+  valueMetrics
+} from "./data/mockData";
 import type {
   AgentStatus,
   Approval,
@@ -15,10 +24,14 @@ import type {
 import ApprovalDrawer from "./components/ApprovalDrawer";
 import ApprovalSimulationCard from "./components/ApprovalSimulationCard";
 import AgentsRunsSection from "./components/AgentsRunsSection";
+import ActivationLoopsCard from "./components/ActivationLoopsCard";
 import Banner from "./components/Banner";
 import ControlSurfaceCard from "./components/ControlSurfaceCard";
+import FeedbackPulseCard from "./components/FeedbackPulseCard";
+import IntegrationHubCard from "./components/IntegrationHubCard";
 import LogsCard from "./components/LogsCard";
 import OverviewSection from "./components/OverviewSection";
+import OutcomeScorecard from "./components/OutcomeScorecard";
 import PolicyModal from "./components/PolicyModal";
 import RunComposerCard from "./components/RunComposerCard";
 import RunDetailDrawer from "./components/RunDetailDrawer";
@@ -271,6 +284,11 @@ export default function App() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(() => {
     return initialStoredState?.selectedTemplateId ?? (defaultTemplates[0]?.id ?? "");
   });
+  const [activationLoops, setActivationLoops] = useState(() => defaultActivationLoops);
+  const [integrationOptions, setIntegrationOptions] = useState(
+    () => defaultIntegrationOptions
+  );
+  const [feedbackSignals, setFeedbackSignals] = useState(() => defaultFeedbackSignals);
   const [autoApproveRisk, setAutoApproveRisk] = useState<Approval["risk"]>("medium");
   const [composerObjective, setComposerObjective] = useState("");
   const [composerOwner, setComposerOwner] = useState("Ops");
@@ -798,6 +816,40 @@ export default function App() {
     setConfirmationToasts((prev) => [toast, ...prev].slice(0, 3));
   };
 
+  const toggleLoopStatus = (id: string) => {
+    setActivationLoops((prev) =>
+      prev.map((loop) => {
+        if (loop.id !== id) return loop;
+        return {
+          ...loop,
+          status: loop.status === "live" ? "paused" : "live"
+        };
+      })
+    );
+  };
+
+  const connectIntegration = (id: string) => {
+    setIntegrationOptions((prev) => {
+      const target = prev.find((integration) => integration.id === id);
+      if (target && target.status !== "connected") {
+        setBanner(`Connected ${target.name}. Runs will sync automatically.`);
+      }
+      return prev.map((integration) => {
+        if (integration.id !== id) return integration;
+        if (integration.status === "connected") return integration;
+        return { ...integration, status: "connected" };
+      });
+    });
+  };
+
+  const boostSignal = (id: string) => {
+    setFeedbackSignals((prev) =>
+      prev.map((signal) =>
+        signal.id === id ? { ...signal, votes: signal.votes + 1 } : signal
+      )
+    );
+  };
+
   const confirmToast = (id: string) => {
     setConfirmationToasts((prev) => {
       const toast = prev.find((item) => item.id === id);
@@ -840,6 +892,16 @@ export default function App() {
         onViewAll={() => setSelectedApproval(approvals[0] ?? null)}
         onSelectApproval={(approval) => setSelectedApproval(approval)}
       />
+
+      <section className="grid growth-grid">
+        <OutcomeScorecard metrics={valueMetrics} />
+        <ActivationLoopsCard loops={activationLoops} onToggle={toggleLoopStatus} />
+        <IntegrationHubCard
+          integrations={integrationOptions}
+          onConnect={connectIntegration}
+        />
+        <FeedbackPulseCard signals={feedbackSignals} onBoost={boostSignal} />
+      </section>
 
       <AgentsRunsSection
         agents={agents}
