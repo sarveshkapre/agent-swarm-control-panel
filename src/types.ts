@@ -81,3 +81,42 @@ export type LogEntry = {
   message: string;
   timestamp: string;
 };
+
+export type ValueMetric = {
+  id: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+  trend: "up" | "down" | "flat";
+  delta: string;
+  note: string;
+};
+
+export type ActivationLoop = {
+  id: string;
+  title: string;
+  description: string;
+  owner: string;
+  status: "live" | "paused" | "planned";
+  impact: string;
+  nextStep: string;
+};
+
+export type IntegrationOption = {
+  id: string;
+  name: string;
+  category: string;
+  status: "connected" | "available" | "beta";
+  description: string;
+  benefit: string;
+};
+
+export type FeedbackSignal = {
+  id: string;
+  source: string;
+  request: string;
+  segment: string;
+  priority: "high" | "medium" | "low";
+  votes: number;
+};
