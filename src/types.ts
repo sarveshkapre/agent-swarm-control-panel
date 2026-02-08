@@ -120,3 +120,23 @@ export type FeedbackSignal = {
   priority: "high" | "medium" | "low";
   votes: number;
 };
+
+export type RunTemplate = {
+  id: string;
+  name: string;
+  objective: string;
+  agents: string[];
+  approvals: string[];
+  estCost: string;
+  playbook: string[];
+};
+
+export type RunHealthSummary = {
+  totalRuns: number;
+  queuedRuns: number;
+  atRiskRuns: number;
+  breachedRuns: number;
+  pendingApprovals: number;
+  errorLogs: number;
+  spendAtRisk: number;
+};

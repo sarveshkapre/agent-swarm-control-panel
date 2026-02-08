@@ -169,6 +169,70 @@ it("queues a run from the composer and shows it in the list", async () => {
   expect(screen.getAllByText(/Queued/i).length).toBeGreaterThan(0);
 });
 
+it("queues quick runs from top bar and runs panel actions", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+
+  expect(
+    within(runList!).queryAllByText(/Ad hoc control-plane sync/i)
+  ).toHaveLength(0);
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^New run$/i }));
+  });
+  expect(
+    within(runList!).getAllByText(/Ad hoc control-plane sync/i)
+  ).toHaveLength(1);
+
+  const runsCard = screen.getByText(/Runs in progress/i).closest(".card") as
+    | HTMLElement
+    | null;
+  expect(runsCard).not.toBeNull();
+  await act(async () => {
+    await user.click(within(runsCard!).getByRole("button", { name: /^Queue run$/i }));
+  });
+  expect(
+    within(runList!).getAllByText(/Ad hoc control-plane sync/i)
+  ).toHaveLength(2);
+});
+
+it("queues a run from the selected template card", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+  expect(
+    within(runList!).queryByText(/Ship onboarding flow with experiments/i)
+  ).not.toBeInTheDocument();
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /Queue from template/i }));
+  });
+
+  expect(
+    within(runList!).getByText(/Ship onboarding flow with experiments/i)
+  ).toBeInTheDocument();
+});
+
+it("shows run health summary metrics and at-risk run details", () => {
+  render(<App />);
+
+  const healthCard = screen.getByText(/Run health summary/i).closest(".card") as
+    | HTMLElement
+    | null;
+  expect(healthCard).not.toBeNull();
+  expect(within(healthCard!).getByText(/Approvals pending/i)).toBeInTheDocument();
+  expect(within(healthCard!).getByText(/Across 3 total runs/i)).toBeInTheDocument();
+  expect(within(healthCard!).getByText(/\$7\.12/)).toBeInTheDocument();
+  expect(
+    within(healthCard!).getByText(/r-113 · Compile competitive report/i)
+  ).toBeInTheDocument();
+});
+
 it("confirms run actions via toast and updates status", async () => {
   render(<App />);
 

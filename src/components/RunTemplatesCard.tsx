@@ -1,19 +1,11 @@
-type Template = {
-  id: string;
-  name: string;
-  objective: string;
-  agents: string[];
-  approvals: string[];
-  estCost: string;
-  playbook: string[];
-};
+import type { RunTemplate } from "../types";
 
 type RunTemplatesCardProps = {
-  templates: Template[];
+  templates: RunTemplate[];
   selectedTemplateId: string;
   onSelectTemplate: (id: string) => void;
-  selectedTemplate: Template | undefined;
-  onQueueTemplate: (template: Template) => void;
+  selectedTemplate: RunTemplate | undefined;
+  onQueueTemplate: (template: RunTemplate) => void;
   onNewTemplate: () => void;
 };
 

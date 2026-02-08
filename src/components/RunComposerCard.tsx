@@ -1,10 +1,11 @@
 import type { FormEvent } from "react";
+import type { RunTemplate } from "../types";
 
 type RunComposerCardProps = {
   objective: string;
   owner: string;
   templateId: string;
-  templates: { id: string; name: string }[];
+  templates: Pick<RunTemplate, "id" | "name">[];
   onObjectiveChange: (value: string) => void;
   onOwnerChange: (value: string) => void;
   onTemplateChange: (value: string) => void;

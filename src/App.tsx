@@ -16,9 +16,11 @@ import type {
   LogBudget,
   PolicySettings,
   Run,
+  RunHealthSummary,
   RunActivity,
   RunPhase,
   RunStatus,
+  RunTemplate,
   SpikeAlerts
 } from "./types";
 import ApprovalDrawer from "./components/ApprovalDrawer";
@@ -35,6 +37,7 @@ import OutcomeScorecard from "./components/OutcomeScorecard";
 import PolicyModal from "./components/PolicyModal";
 import RunComposerCard from "./components/RunComposerCard";
 import RunDetailDrawer from "./components/RunDetailDrawer";
+import RunHealthCard from "./components/RunHealthCard";
 import RunTemplatesCard from "./components/RunTemplatesCard";
 import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
@@ -130,7 +133,7 @@ const defaultPolicy: PolicySettings = {
   evidenceBundle: true
 };
 
-const defaultTemplates = [
+const defaultTemplates: RunTemplate[] = [
   {
     id: "tpl-onboarding",
     name: "Onboarding launch",
@@ -167,6 +170,43 @@ const defaultTemplates = [
     playbook: ["Run tests", "Capture logs", "Export evidence"]
   }
 ];
+
+const defaultQuickRunObjective = "Ad hoc control-plane sync";
+const defaultQuickRunAgents = ["Atlas", "Nova"];
+const defaultQuickRunCostEstimate = "$5.00";
+
+const runDurationMinutes: Record<string, number> = {
+  "r-114": 52,
+  "r-113": 38,
+  "r-112": 95
+};
+
+function parseCostEstimate(value: string) {
+  const matches = value.replace(/,/g, "").match(/\d+(\.\d+)?/g);
+  if (!matches || matches.length === 0) return null;
+  const numbers = matches.map((item) => Number.parseFloat(item)).filter(Number.isFinite);
+  if (numbers.length === 0) return null;
+  const total = numbers.reduce((sum, current) => sum + current, 0);
+  return total / numbers.length;
+}
+
+function getRunSlaBadge(run: Run) {
+  const minutes = runDurationMinutes[run.id] ?? 0;
+  if (run.status === "completed") return { label: "Met", tone: "low" as const };
+  if (run.status === "failed") return { label: "Breached", tone: "high" as const };
+  if (run.status === "queued") return { label: "Pending", tone: "muted" as const };
+  if (run.status === "waiting") {
+    return minutes > 30
+      ? { label: "At risk", tone: "medium" as const }
+      : { label: "Waiting", tone: "muted" as const };
+  }
+  if (run.status === "running") {
+    return minutes > 60
+      ? { label: "At risk", tone: "medium" as const }
+      : { label: "On track", tone: "low" as const };
+  }
+  return { label: "—", tone: "muted" as const };
+}
 
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -300,13 +340,52 @@ export default function App() {
   const runDetailPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
-  const queueRun = useCallback((source?: string) => {
-    setBanner(
-      source
-        ? `Queued a new swarm run from ${source}. Approval required for external tools.`
-        : "Queued a new swarm run. Approval required for external tools."
-    );
-  }, []);
+  const queueRun = useCallback(
+    (options?: {
+      source?: string;
+      template?: RunTemplate | null;
+      objective?: string;
+      owner?: string;
+      bannerMessage?: string;
+    }) => {
+      const template = options?.template ?? null;
+      const nextRun: Run = {
+        id: `r-${Date.now()}-${Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, "0")}`,
+        objective:
+          options?.objective?.trim() ||
+          template?.objective ||
+          defaultQuickRunObjective,
+        owner: options?.owner ?? "Ops",
+        startedAt: "Just now",
+        status: "queued",
+        agents: template?.agents ?? defaultQuickRunAgents,
+        costEstimate: template?.estCost ?? defaultQuickRunCostEstimate,
+        tokens: "—"
+      };
+      setQueuedRuns((prev) => [nextRun, ...prev]);
+
+      if (options?.bannerMessage) {
+        setBanner(options.bannerMessage);
+        return;
+      }
+
+      if (template) {
+        setBanner(
+          `Queued run from template “${template.name}”. Approval required for external tools.`
+        );
+        return;
+      }
+
+      setBanner(
+        options?.source
+          ? `Queued a new swarm run from ${options.source}. Approval required for external tools.`
+          : "Queued a new swarm run. Approval required for external tools."
+      );
+    },
+    []
+  );
 
   const overlayOpen = selectedApproval !== null || selectedRun !== null || policyOpen;
   const activePanelRef = selectedApproval
@@ -454,7 +533,7 @@ export default function App() {
       }
       if (event.key.toLowerCase() === "n" && !isTypingTarget(event.target)) {
         event.preventDefault();
-        queueRun();
+        queueRun({ source: "shortcut" });
       }
       if (event.key === "Escape") {
         setSelectedApproval(null);
@@ -505,6 +584,31 @@ export default function App() {
     });
   }, [logSearch, logLevel, logAgent]);
 
+  const atRiskRuns = useMemo(
+    () =>
+      runData.filter((run) => {
+        const tone = getRunSlaBadge(run).tone;
+        return tone === "medium" || tone === "high";
+      }),
+    [runData]
+  );
+
+  const runHealthSummary = useMemo<RunHealthSummary>(() => {
+    const breachedRuns = runData.filter((run) => getRunSlaBadge(run).tone === "high").length;
+    const spendAtRisk = atRiskRuns.reduce((total, run) => {
+      return total + (parseCostEstimate(run.costEstimate) ?? 0);
+    }, 0);
+    return {
+      totalRuns: runData.length,
+      queuedRuns: runData.filter((run) => run.status === "queued").length,
+      atRiskRuns: atRiskRuns.length,
+      breachedRuns,
+      pendingApprovals: approvals.length,
+      errorLogs: logs.filter((log) => log.level === "error").length,
+      spendAtRisk
+    };
+  }, [atRiskRuns, runData]);
+
   const togglePin = (id: string) => {
     setPinnedLogs((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -515,10 +619,15 @@ export default function App() {
     const payload = {
       generatedAt: new Date().toISOString(),
       policy,
+      runHealthSummary,
       agents,
-      runs,
+      runs: runData,
+      queuedRuns,
+      runOverrides,
       approvals,
-      logs
+      logs,
+      logBudget,
+      spikeAlerts
     };
     downloadJson("agent-swarm-evidence-pack.json", payload);
   };
@@ -595,12 +704,6 @@ export default function App() {
     ...approval,
     decision: riskRank(approval.risk) <= autoApproveRank ? "Auto-approve" : "Manual review"
   }));
-
-  const runDurationMinutes: Record<string, number> = {
-    "r-114": 52,
-    "r-113": 38,
-    "r-112": 95
-  };
 
   const runPhaseTimeline: Record<string, RunPhase[]> = {
     "r-114": [
@@ -710,24 +813,6 @@ export default function App() {
     return "—";
   };
 
-  const getRunSlaBadge = (run: Run) => {
-    const minutes = runDurationMinutes[run.id] ?? 0;
-    if (run.status === "completed") return { label: "Met", tone: "low" as const };
-    if (run.status === "failed") return { label: "Breached", tone: "high" as const };
-    if (run.status === "queued") return { label: "Pending", tone: "muted" as const };
-    if (run.status === "waiting") {
-      return minutes > 30
-        ? { label: "At risk", tone: "medium" as const }
-        : { label: "Waiting", tone: "muted" as const };
-    }
-    if (run.status === "running") {
-      return minutes > 60
-        ? { label: "At risk", tone: "medium" as const }
-        : { label: "On track", tone: "low" as const };
-    }
-    return { label: "—", tone: "muted" as const };
-  };
-
   const buildDefaultTimeline = (run: Run): RunPhase[] => {
     const phaseLabels = ["Queued", "Planning", "Execution", "Review", "Complete"];
     const statusIndexMap: Record<RunStatus, number> = {
@@ -766,25 +851,16 @@ export default function App() {
       return;
     }
 
-    const nextRun: Run = {
-      id: `r-${Date.now()}`,
-      objective: trimmedObjective,
+    queueRun({
       owner: composerOwner,
-      startedAt: "Just now",
-      status: "queued",
-      agents: composerTemplate?.agents ?? ["TBD"],
-      costEstimate: composerTemplate?.estCost ?? "—",
-      tokens: "—"
-    };
-
-    setQueuedRuns((prev) => [nextRun, ...prev]);
-    setComposerObjective("");
-    setComposerTemplateId("none");
-    setBanner(
-      composerTemplate
+      objective: trimmedObjective,
+      template: composerTemplate,
+      bannerMessage: composerTemplate
         ? `Queued run from ${composerTemplate.name}.`
         : `Queued run: ${trimmedObjective}.`
-    );
+    });
+    setComposerObjective("");
+    setComposerTemplateId("none");
   };
 
   const handleRunAction = (run: Run, action: "pause" | "retry" | "cancel") => {
@@ -882,7 +958,7 @@ export default function App() {
       <TopBar
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
-        onNewRun={() => queueRun()}
+        onNewRun={() => queueRun({ source: "top bar" })}
       />
 
       {banner ? <Banner message={banner} onDismiss={() => setBanner(null)} /> : null}
@@ -895,6 +971,11 @@ export default function App() {
 
       <section className="grid growth-grid">
         <OutcomeScorecard metrics={valueMetrics} />
+        <RunHealthCard
+          summary={runHealthSummary}
+          atRiskRuns={atRiskRuns}
+          onViewRun={setSelectedRun}
+        />
         <ActivationLoopsCard loops={activationLoops} onToggle={toggleLoopStatus} />
         <IntegrationHubCard
           integrations={integrationOptions}
@@ -910,7 +991,7 @@ export default function App() {
         onRunSearchChange={setRunSearch}
         filteredRuns={filteredRuns}
         runStatusLabel={runStatusLabel}
-        onQueueRun={() => queueRun()}
+        onQueueRun={() => queueRun({ source: "runs panel" })}
         onRunAction={handleRunAction}
         onViewDetails={setSelectedRun}
         getRunDurationLabel={getRunDurationLabel}
@@ -972,7 +1053,7 @@ export default function App() {
           selectedTemplateId={selectedTemplateId}
           onSelectTemplate={setSelectedTemplateId}
           selectedTemplate={selectedTemplate}
-          onQueueTemplate={(template) => queueRun(`template “${template.name}”`)}
+          onQueueTemplate={(template) => queueRun({ template })}
           onNewTemplate={() => setBanner("Saved new playbook draft.")}
         />
       </section>
