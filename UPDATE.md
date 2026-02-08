@@ -1,31 +1,22 @@
-# Update (2026-02-01)
+# Update (2026-02-08)
 
 ## What changed
-- Fixed local persisted state hydration (no first-render overwrite).
-- Improved robustness around log streaming, JSON import/export, and keyboard shortcuts.
-- Added regression tests for the above.
-- Added focus trap + restore for drawer and policy modal.
-- Added a run composer to queue local runs (with optional templates).
-- Refactored the dashboard into modular components.
-- Added per-run actions with confirmation toasts.
-- Added a run detail drawer with recent logs and approvals.
-- Added run-level SLA badges with duration tracking.
-- Added run phase timeline inside run details.
-- Added a per-run activity feed with key events.
+- Fixed run-queue UX gap: `New run`, `Queue run`, and `Queue from template` now create queued runs immediately.
+- Added a run health summary card with at-risk runs, approval pressure, error pressure, and spend-at-risk estimate.
+- Expanded evidence export payload to include live run state (`runData`, queued runs, run overrides) and run health summary.
+- Added regression tests for quick queue actions, template queue flow, and run health summary rendering.
+- Hardened GitHub Actions workflows with explicit job timeouts and `workflow_dispatch` triggers.
+- Re-validated CI locally and smoke-verified the app runs in a local dev session.
 
 ## How to verify
 - `make check`
-- `make dev` then open the app and validate:
-  - Theme/search fields persist across reloads.
-  - `/` focuses “Search runs” unless you are typing in an input.
-  - Start/Pause stream doesn’t spam intervals.
-  - Drawer/modal keep focus inside and restore focus on close.
-  - Composer queues a run and it appears in the run list.
-  - Pause/Retry/Cancel actions show a toast and update status after confirm.
-  - Run details show recent logs and approvals.
-  - Runs display SLA badge and duration status.
-  - Run details show the phase timeline.
-  - Run details show the activity feed.
+- `npm audit --audit-level=high`
+- Local smoke: `npm run dev -- --host 127.0.0.1 --port 4173` then `curl -sSf http://127.0.0.1:4173/`
+- In UI:
+  - Click `New run` in top bar, then `Queue run` in runs panel, and confirm both add entries in runs list.
+  - Click `Queue from template` and confirm template objective appears as a queued run.
+  - Check `Run health summary` values and open an at-risk run from the card.
+  - Export evidence and verify payload includes `runHealthSummary`, `runs`, `queuedRuns`, and `runOverrides`.
 
 ## Shipping
 - Shipped directly to `main` (no PR).

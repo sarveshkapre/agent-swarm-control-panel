@@ -7,6 +7,8 @@
 - Harden JSON import/export paths and error handling.
 - Trap focus within overlays, restore focus on close, and disable background scroll.
 - Split the main dashboard view into modular components.
+- Ensure `New run`, `Queue run`, and `Queue from template` actions create real queued runs.
+- Improve evidence export to include live run state and health summary instead of seed-only run data.
 
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
@@ -18,6 +20,9 @@
 - Run phase timeline inside the run detail drawer.
 - Per-run activity feed with key events.
 - Growth momentum dashboard with outcome scorecard, activation loops, integration launchpad, and feedback radar.
+- Run health summary card (at-risk runs, approvals pending, error count, spend-at-risk estimate).
+- Regression tests for quick queue actions, template queueing, and run health summary rendering.
+- GitHub Actions workflow hardening with explicit job timeouts and manual dispatch support.
 
 ## [0.1.0] - 2026-02-01
 ### Added
