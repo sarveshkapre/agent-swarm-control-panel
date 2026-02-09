@@ -53,6 +53,7 @@ import {
   type EvidenceExportPayload,
   verifyEvidenceExportPayload
 } from "./utils/evidence";
+import { copyToClipboard } from "./utils/clipboard";
 import {
   formatRunDurationLabel,
   getRunDurationMinutes,
@@ -959,6 +960,70 @@ export default function App() {
     };
   }, [atRiskRuns, getRunSlaBadgeForRun, runData]);
 
+  const setQueueingPaused = useCallback((paused: boolean) => {
+    setPolicy((prev) => ({ ...prev, pauseNewRuns: paused }));
+    setBanner(paused ? "Emergency stop enabled. New runs will not queue." : "Queueing resumed.");
+  }, []);
+
+  const buildOwnerPingDraft = useCallback(() => {
+    const now = new Date().toISOString();
+    if (atRiskRuns.length === 0) {
+      return `Owner ping (${now}): No at-risk runs detected.`;
+    }
+    const runLines = atRiskRuns
+      .slice(0, 8)
+      .map((run) => `- ${run.owner}: ${run.id} (${run.status}) ${run.objective}`);
+    const suffix =
+      atRiskRuns.length > 8 ? `\n- +${atRiskRuns.length - 8} more at-risk runs` : "";
+    return [
+      `Owner ping (${now})`,
+      `At-risk runs: ${runHealthSummary.atRiskRuns} (breached: ${runHealthSummary.breachedRuns})`,
+      `Approvals pending: ${runHealthSummary.pendingApprovals} | Error logs: ${runHealthSummary.errorLogs}`,
+      "",
+      "Runs needing attention:",
+      ...runLines
+    ].join("\n") + suffix;
+  }, [atRiskRuns, runHealthSummary]);
+
+  const buildIncidentDraft = useCallback(() => {
+    const now = new Date().toISOString();
+    const runLines =
+      atRiskRuns.length === 0
+        ? ["- None"]
+        : atRiskRuns.map(
+            (run) => `- ${run.id} | owner=${run.owner} | status=${run.status} | ${run.objective}`
+          );
+    return [
+      `# Incident draft: Agent swarm run health (${now})`,
+      "",
+      "## Summary",
+      `- Total runs: ${runHealthSummary.totalRuns}`,
+      `- At-risk runs: ${runHealthSummary.atRiskRuns} (breached: ${runHealthSummary.breachedRuns})`,
+      `- Approvals pending: ${runHealthSummary.pendingApprovals}`,
+      `- Error logs: ${runHealthSummary.errorLogs}`,
+      `- Spend at risk (est.): $${runHealthSummary.spendAtRisk.toFixed(2)}`,
+      `- Emergency stop (pause new runs): ${policy.pauseNewRuns ? "ON" : "OFF"}`,
+      "",
+      "## Affected runs",
+      ...runLines,
+      "",
+      "## Immediate actions",
+      "- [ ] Enable emergency stop if error pressure is rising",
+      "- [ ] Review approval backlog and unblock high-risk items",
+      "- [ ] Inspect run logs for repeating errors and rollback risky changes"
+    ].join("\n");
+  }, [atRiskRuns, policy.pauseNewRuns, runHealthSummary]);
+
+  const copyOwnerPing = useCallback(async () => {
+    const ok = await copyToClipboard(buildOwnerPingDraft());
+    setBanner(ok ? "Copied owner ping draft." : "Unable to copy owner ping in this browser.");
+  }, [buildOwnerPingDraft]);
+
+  const copyIncidentDraft = useCallback(async () => {
+    const ok = await copyToClipboard(buildIncidentDraft());
+    setBanner(ok ? "Copied incident draft." : "Unable to copy incident draft in this browser.");
+  }, [buildIncidentDraft]);
+
   const togglePin = (id: string) => {
     setPinnedLogs((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -1448,6 +1513,10 @@ export default function App() {
           summary={runHealthSummary}
           atRiskRuns={atRiskRuns}
           onViewRun={setSelectedRun}
+          queueingPaused={policy.pauseNewRuns}
+          onSetQueueingPaused={setQueueingPaused}
+          onCopyOwnerPing={() => void copyOwnerPing()}
+          onCopyIncidentDraft={() => void copyIncidentDraft()}
         />
         <ActivationLoopsCard loops={activationLoops} onToggle={toggleLoopStatus} />
         <IntegrationHubCard

@@ -4,6 +4,10 @@ type RunHealthCardProps = {
   summary: RunHealthSummary;
   atRiskRuns: Run[];
   onViewRun: (run: Run) => void;
+  queueingPaused: boolean;
+  onSetQueueingPaused: (paused: boolean) => void;
+  onCopyOwnerPing: () => void;
+  onCopyIncidentDraft: () => void;
 };
 
 function formatUsd(value: number) {
@@ -18,7 +22,11 @@ function formatUsd(value: number) {
 export default function RunHealthCard({
   summary,
   atRiskRuns,
-  onViewRun
+  onViewRun,
+  queueingPaused,
+  onSetQueueingPaused,
+  onCopyOwnerPing,
+  onCopyIncidentDraft
 }: RunHealthCardProps) {
   return (
     <div className="card run-health">
@@ -66,6 +74,21 @@ export default function RunHealthCard({
             ))}
           </ul>
         )}
+      </div>
+      <div className="run-health-actions">
+        <button
+          className={queueingPaused ? "ghost" : "primary"}
+          type="button"
+          onClick={() => onSetQueueingPaused(!queueingPaused)}
+        >
+          {queueingPaused ? "Resume queueing" : "Emergency stop"}
+        </button>
+        <button className="ghost" type="button" onClick={onCopyOwnerPing}>
+          Copy owner ping
+        </button>
+        <button className="ghost" type="button" onClick={onCopyIncidentDraft}>
+          Copy incident draft
+        </button>
       </div>
     </div>
   );

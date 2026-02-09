@@ -268,6 +268,40 @@ it("shows run health summary metrics and at-risk run details", () => {
   ).toBeInTheDocument();
 });
 
+it("copies escalation drafts from the run health summary card", async () => {
+  try {
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: undefined,
+      configurable: true
+    });
+  } catch {
+    // Some environments expose a non-configurable clipboard; banner assertions below are still valid.
+  }
+  if (!document.execCommand) {
+    Object.defineProperty(document, "execCommand", { value: () => true, configurable: true });
+  }
+  vi.spyOn(document, "execCommand").mockImplementation(() => true);
+
+  render(<App />);
+  const user = userEvent.setup();
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /Copy incident draft/i }));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Copied incident draft/i);
+  });
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /Copy owner ping/i }));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Copied owner ping/i);
+  });
+});
+
 it("confirms run actions via toast and updates status", async () => {
   render(<App />);
 
