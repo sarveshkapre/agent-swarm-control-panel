@@ -23,6 +23,8 @@
 - Verification evidence (CI):
   - `gh run watch 21843025630 --exit-status` (pass).
   - `gh run watch 21843028147 --exit-status` (pass).
+  - `gh run watch 21843131469 --exit-status` (pass).
+  - `gh run watch 21843129138 --exit-status` (pass).
 - Mistakes and fixes:
   - Root cause: evidence viewer modal used a `<label>` without an associated control, tripping `jsx-a11y/label-has-associated-control`.
   - Fix: replaced the label with non-form text (`<p className="muted">Preview</p>`).
