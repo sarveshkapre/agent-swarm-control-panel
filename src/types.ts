@@ -12,6 +12,8 @@ export type Agent = {
 
 export type RunStatus = "queued" | "running" | "waiting" | "failed" | "completed";
 
+export type RunStatusFilter = "all" | RunStatus;
+
 export type RunPhaseStatus = "done" | "current" | "upcoming" | "blocked";
 
 export type RunPhase = {
@@ -148,6 +150,7 @@ export type LogLevelFilter = "all" | "info" | "warn" | "error";
 export type StoredState = {
   theme: "dark" | "light";
   runSearch: string;
+  runStatusFilter: RunStatusFilter;
   logSearch: string;
   logLevel: LogLevelFilter;
   logAgent: string;
@@ -157,5 +160,6 @@ export type StoredState = {
   policy: PolicySettings;
   spikeAlerts: SpikeAlerts;
   logBudget: LogBudget;
+  templates: RunTemplate[];
   selectedTemplateId: string;
 };

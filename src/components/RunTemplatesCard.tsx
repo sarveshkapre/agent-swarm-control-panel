@@ -7,6 +7,9 @@ type RunTemplatesCardProps = {
   selectedTemplate: RunTemplate | undefined;
   onQueueTemplate: (template: RunTemplate) => void;
   onNewTemplate: () => void;
+  onEditTemplate: (template: RunTemplate) => void;
+  onDuplicateTemplate: (template: RunTemplate) => void;
+  onDeleteTemplate: (template: RunTemplate) => void;
 };
 
 export default function RunTemplatesCard({
@@ -15,7 +18,10 @@ export default function RunTemplatesCard({
   onSelectTemplate,
   selectedTemplate,
   onQueueTemplate,
-  onNewTemplate
+  onNewTemplate,
+  onEditTemplate,
+  onDuplicateTemplate,
+  onDeleteTemplate
 }: RunTemplatesCardProps) {
   return (
     <div className="card">
@@ -45,6 +51,29 @@ export default function RunTemplatesCard({
       </div>
       {selectedTemplate ? (
         <div className="template-detail">
+          <div className="header-actions">
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => onEditTemplate(selectedTemplate)}
+            >
+              Edit
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => onDuplicateTemplate(selectedTemplate)}
+            >
+              Duplicate
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => onDeleteTemplate(selectedTemplate)}
+            >
+              Delete
+            </button>
+          </div>
           <div>
             <p className="muted">Approvals</p>
             <strong>{selectedTemplate.approvals.join(", ")}</strong>

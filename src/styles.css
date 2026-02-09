@@ -416,6 +416,44 @@ select:focus-visible {
   margin-bottom: 16px;
 }
 
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -6px 0 16px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  font-size: 0.82rem;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+}
+
+.chip.active {
+  background: rgba(122, 208, 255, 0.22);
+  border-color: rgba(122, 208, 255, 0.35);
+  color: #7ad0ff;
+}
+
+:root[data-theme="light"] .chip {
+  background: rgba(27, 27, 31, 0.06);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme="light"] .chip.active {
+  background: rgba(75, 123, 255, 0.14);
+  border-color: rgba(75, 123, 255, 0.22);
+  color: rgba(15, 23, 42, 0.9);
+}
+
 input,
 select {
   flex: 1;

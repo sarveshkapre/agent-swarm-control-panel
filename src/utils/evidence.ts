@@ -7,6 +7,7 @@ import type {
   Run,
   RunHealthSummary,
   RunStatus,
+  RunTemplate,
   SpikeAlerts
 } from "../types";
 
@@ -22,6 +23,8 @@ type EvidenceCorePayload = {
   logs: LogEntry[];
   logBudget: LogBudget;
   spikeAlerts: SpikeAlerts;
+  templates: RunTemplate[];
+  selectedTemplateId: string;
 };
 
 export type EvidenceExportPayload = EvidenceCorePayload & {
@@ -67,7 +70,7 @@ export async function buildEvidenceExportPayload(
   const computedAt = new Date().toISOString();
 
   return {
-    evidenceSchemaVersion: 2,
+    evidenceSchemaVersion: 3,
     integrity: hash
       ? {
           algorithm: "SHA-256",

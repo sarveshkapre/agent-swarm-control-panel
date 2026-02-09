@@ -21,6 +21,7 @@ import type {
   RunHealthSummary,
   RunPhase,
   RunStatus,
+  RunStatusFilter,
   RunTemplate,
   StoredState,
   SpikeAlerts
@@ -44,6 +45,7 @@ import RunComposerCard from "./components/RunComposerCard";
 import RunDetailDrawer from "./components/RunDetailDrawer";
 import RunHealthCard from "./components/RunHealthCard";
 import RunTemplatesCard from "./components/RunTemplatesCard";
+import TemplateModal, { type TemplateDraft } from "./components/TemplateModal";
 import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
 import {
@@ -197,6 +199,10 @@ function isRunStatus(value: unknown): value is RunStatus {
   return typeof value === "string" && runStatuses.includes(value as RunStatus);
 }
 
+function isRunStatusFilter(value: unknown): value is RunStatusFilter {
+  return value === "all" || isRunStatus(value);
+}
+
 function isLogLevelFilter(value: unknown): value is LogLevelFilter {
   return typeof value === "string" && logLevels.includes(value as LogLevelFilter);
 }
@@ -237,6 +243,28 @@ function sanitizeRunOverrides(value: unknown) {
     }
     return acc;
   }, {});
+}
+
+function sanitizeRunTemplate(value: unknown): RunTemplate | null {
+  if (!isObjectRecord(value)) return null;
+  const template: RunTemplate = {
+    id: typeof value.id === "string" ? value.id : "",
+    name: typeof value.name === "string" ? value.name : "",
+    objective: typeof value.objective === "string" ? value.objective : "",
+    agents: isStringArray(value.agents) ? value.agents : [],
+    approvals: isStringArray(value.approvals) ? value.approvals : [],
+    estCost: typeof value.estCost === "string" ? value.estCost : "$0.00",
+    playbook: isStringArray(value.playbook) ? value.playbook : []
+  };
+  if (!template.id || !template.name || !template.objective) return null;
+  return template;
+}
+
+function sanitizeTemplateList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((template) => sanitizeRunTemplate(template))
+    .filter((template): template is RunTemplate => template !== null);
 }
 
 function sanitizePolicy(value: unknown) {
@@ -303,6 +331,9 @@ function sanitizeStoredState(value: unknown): Partial<StoredState> | null {
   return {
     theme: value.theme === "light" || value.theme === "dark" ? value.theme : undefined,
     runSearch: typeof value.runSearch === "string" ? value.runSearch : undefined,
+    runStatusFilter: isRunStatusFilter(value.runStatusFilter)
+      ? value.runStatusFilter
+      : undefined,
     logSearch: typeof value.logSearch === "string" ? value.logSearch : undefined,
     logLevel: isLogLevelFilter(value.logLevel) ? value.logLevel : undefined,
     logAgent: typeof value.logAgent === "string" ? value.logAgent : undefined,
@@ -312,6 +343,7 @@ function sanitizeStoredState(value: unknown): Partial<StoredState> | null {
     policy: sanitizePolicy(value.policy),
     spikeAlerts: sanitizeSpikeAlerts(value.spikeAlerts),
     logBudget: sanitizeLogBudget(value.logBudget),
+    templates: sanitizeTemplateList(value.templates),
     selectedTemplateId:
       typeof value.selectedTemplateId === "string" ? value.selectedTemplateId : undefined
   };
@@ -477,12 +509,32 @@ function downloadJson(filename: string, payload: unknown) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function parseTokenList(raw: string) {
+  const parts = raw
+    .split(/[\n,]/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return Array.from(new Set(parts));
+}
+
+function parseLineList(raw: string) {
+  const parts = raw
+    .split("\n")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return Array.from(new Set(parts));
+}
+
 export default function App() {
   const [initialStoredState] = useState<Partial<StoredState> | null>(() =>
     readStoredState()
   );
 
   const [runSearch, setRunSearch] = useState(() => initialStoredState?.runSearch ?? "");
+  const [runStatusFilter, setRunStatusFilter] = useState<RunStatusFilter>(() => {
+    const value = initialStoredState?.runStatusFilter;
+    return isRunStatusFilter(value) ? value : "all";
+  });
   const [logSearch, setLogSearch] = useState(() => initialStoredState?.logSearch ?? "");
   const [logLevel, setLogLevel] = useState<LogLevelFilter>(() => {
     const value = initialStoredState?.logLevel;
@@ -502,6 +554,7 @@ export default function App() {
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [verifyEvidenceOpen, setVerifyEvidenceOpen] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [verifyEvidenceText, setVerifyEvidenceText] = useState("");
   const [verifyEvidenceResult, setVerifyEvidenceResult] =
     useState<EvidenceVerifySummary | null>(null);
@@ -526,10 +579,26 @@ export default function App() {
   const [spikeAlerts, setSpikeAlerts] = useState(
     () => initialStoredState?.spikeAlerts ?? defaultSpikeAlerts
   );
-  const [templates] = useState(defaultTemplates);
+  const initialTemplates =
+    initialStoredState?.templates && initialStoredState.templates.length > 0
+      ? initialStoredState.templates
+      : defaultTemplates;
+  const [templates, setTemplates] = useState<RunTemplate[]>(() => initialTemplates);
   const [selectedTemplateId, setSelectedTemplateId] = useState(() => {
-    return initialStoredState?.selectedTemplateId ?? (defaultTemplates[0]?.id ?? "");
+    const stored = initialStoredState?.selectedTemplateId ?? "";
+    if (stored && initialTemplates.some((tpl) => tpl.id === stored)) return stored;
+    return initialTemplates[0]?.id ?? "";
   });
+  const [templateDraft, setTemplateDraft] = useState<TemplateDraft>(() => ({
+    mode: "create",
+    id: null,
+    name: "",
+    objective: "",
+    agentsText: "",
+    approvalsText: "",
+    estCost: "$0.00",
+    playbookText: ""
+  }));
   const [activationLoops, setActivationLoops] = useState(() => defaultActivationLoops);
   const [integrationOptions, setIntegrationOptions] = useState(
     () => defaultIntegrationOptions
@@ -545,6 +614,7 @@ export default function App() {
   const policyModalPanelRef = useRef<HTMLDivElement>(null);
   const verifyModalPanelRef = useRef<HTMLDivElement>(null);
   const runDetailPanelRef = useRef<HTMLDivElement>(null);
+  const templateModalPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
 
@@ -597,14 +667,20 @@ export default function App() {
   );
 
   const overlayOpen =
-    selectedApproval !== null || selectedRun !== null || policyOpen || verifyEvidenceOpen;
+    selectedApproval !== null ||
+    selectedRun !== null ||
+    policyOpen ||
+    verifyEvidenceOpen ||
+    templateModalOpen;
   const activePanelRef = selectedApproval
     ? drawerPanelRef
     : selectedRun
       ? runDetailPanelRef
       : policyOpen
         ? policyModalPanelRef
-        : verifyModalPanelRef;
+        : verifyEvidenceOpen
+          ? verifyModalPanelRef
+          : templateModalPanelRef;
 
   const runData = useMemo(() => {
     const baseRuns = queuedRuns.length === 0 ? runs : [...queuedRuns, ...runs];
@@ -705,6 +781,7 @@ export default function App() {
     const state: StoredState = {
       theme,
       runSearch,
+      runStatusFilter,
       logSearch,
       logLevel,
       logAgent,
@@ -714,12 +791,14 @@ export default function App() {
       policy,
       spikeAlerts,
       logBudget,
+      templates,
       selectedTemplateId
     };
     storage.setItem(storageKey, JSON.stringify(state));
   }, [
     theme,
     runSearch,
+    runStatusFilter,
     logSearch,
     logLevel,
     logAgent,
@@ -729,6 +808,7 @@ export default function App() {
     policy,
     spikeAlerts,
     logBudget,
+    templates,
     selectedTemplateId
   ]);
 
@@ -741,6 +821,7 @@ export default function App() {
           setSelectedRun(null);
           setPolicyOpen(false);
           setVerifyEvidenceOpen(false);
+          setTemplateModalOpen(false);
         }
         return;
       }
@@ -758,6 +839,7 @@ export default function App() {
         setSelectedRun(null);
         setPolicyOpen(false);
         setVerifyEvidenceOpen(false);
+        setTemplateModalOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -781,15 +863,36 @@ export default function App() {
     };
   }, [streaming]);
 
+  useEffect(() => {
+    if (templates.length === 0) {
+      setTemplates(defaultTemplates);
+      setSelectedTemplateId(defaultTemplates[0]?.id ?? "");
+      return;
+    }
+    if (!selectedTemplateId || !templates.some((tpl) => tpl.id === selectedTemplateId)) {
+      setSelectedTemplateId(templates[0]?.id ?? "");
+    }
+    if (
+      composerTemplateId !== "none" &&
+      !templates.some((tpl) => tpl.id === composerTemplateId)
+    ) {
+      setComposerTemplateId("none");
+    }
+  }, [composerTemplateId, selectedTemplateId, templates]);
+
   const filteredRuns = useMemo(() => {
-    if (!runSearch.trim()) return runData;
+    const statusFiltered =
+      runStatusFilter === "all"
+        ? runData
+        : runData.filter((run) => run.status === runStatusFilter);
+    if (!runSearch.trim()) return statusFiltered;
     const value = runSearch.trim().toLowerCase();
-    return runData.filter((run) =>
+    return statusFiltered.filter((run) =>
       [run.objective, run.owner, run.status, run.id].some((field) =>
         field.toLowerCase().includes(value)
       )
     );
-  }, [runSearch, runData]);
+  }, [runSearch, runData, runStatusFilter]);
 
   const filteredLogs = useMemo(() => {
     const value = logSearch.trim().toLowerCase();
@@ -865,7 +968,9 @@ export default function App() {
       approvals,
       logs,
       logBudget,
-      spikeAlerts
+      spikeAlerts,
+      templates,
+      selectedTemplateId
     });
     downloadJson("agent-swarm-evidence-pack.json", payload);
     setBanner(
@@ -879,6 +984,7 @@ export default function App() {
     setSelectedApproval(null);
     setSelectedRun(null);
     setPolicyOpen(false);
+    setTemplateModalOpen(false);
     setVerifyEvidenceOpen(true);
     setVerifyEvidenceResult(null);
   };
@@ -961,6 +1067,7 @@ export default function App() {
     const payload: StoredState = {
       theme,
       runSearch,
+      runStatusFilter,
       logSearch,
       logLevel,
       logAgent,
@@ -970,6 +1077,7 @@ export default function App() {
       policy,
       spikeAlerts,
       logBudget,
+      templates,
       selectedTemplateId
     };
     downloadJson("agent-swarm-state.json", payload);
@@ -987,6 +1095,7 @@ export default function App() {
 
       setTheme(parsed.theme ?? "dark");
       setRunSearch(parsed.runSearch ?? "");
+      setRunStatusFilter(parsed.runStatusFilter ?? "all");
       setLogSearch(parsed.logSearch ?? "");
       setLogLevel(parsed.logLevel ?? "all");
       setLogAgent(parsed.logAgent ?? "all");
@@ -996,7 +1105,14 @@ export default function App() {
       setPolicy(parsed.policy ?? defaultPolicy);
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
       setLogBudget(parsed.logBudget ?? defaultLogBudget);
-      setSelectedTemplateId(parsed.selectedTemplateId ?? (defaultTemplates[0]?.id ?? ""));
+      const nextTemplates =
+        parsed.templates && parsed.templates.length > 0 ? parsed.templates : defaultTemplates;
+      setTemplates(nextTemplates);
+      const nextSelectedId =
+        parsed.selectedTemplateId && nextTemplates.some((tpl) => tpl.id === parsed.selectedTemplateId)
+          ? parsed.selectedTemplateId
+          : nextTemplates[0]?.id ?? "";
+      setSelectedTemplateId(nextSelectedId);
       setBanner("Imported workspace state.");
       if (importInputRef.current) importInputRef.current.value = "";
     };
@@ -1082,6 +1198,131 @@ export default function App() {
     });
     setComposerObjective("");
     setComposerTemplateId("none");
+  };
+
+  const buildBlankTemplateDraft = (): TemplateDraft => ({
+    mode: "create",
+    id: null,
+    name: "",
+    objective: "",
+    agentsText: "",
+    approvalsText: "",
+    estCost: "$0.00",
+    playbookText: ""
+  });
+
+  const buildDraftFromTemplate = (template: RunTemplate, mode: TemplateDraft["mode"]): TemplateDraft => ({
+    mode,
+    id: mode === "edit" ? template.id : null,
+    name: template.name,
+    objective: template.objective,
+    agentsText: template.agents.join(", "),
+    approvalsText: template.approvals.join(", "),
+    estCost: template.estCost,
+    playbookText: template.playbook.join("\n")
+  });
+
+  const openTemplateEditor = (draft: TemplateDraft) => {
+    setSelectedApproval(null);
+    setSelectedRun(null);
+    setPolicyOpen(false);
+    setVerifyEvidenceOpen(false);
+    setTemplateDraft(draft);
+    setTemplateModalOpen(true);
+  };
+
+  const closeTemplateEditor = () => {
+    setTemplateModalOpen(false);
+  };
+
+  const openNewTemplate = () => openTemplateEditor(buildBlankTemplateDraft());
+
+  const openEditTemplate = (template: RunTemplate) =>
+    openTemplateEditor(buildDraftFromTemplate(template, "edit"));
+
+  const openDuplicateTemplate = (template: RunTemplate) => {
+    const draft = buildDraftFromTemplate(template, "create");
+    openTemplateEditor({
+      ...draft,
+      name: `Copy of ${template.name}`
+    });
+  };
+
+  const saveTemplate = () => {
+    const name = templateDraft.name.trim();
+    const objective = templateDraft.objective.trim();
+    if (!name) {
+      setBanner("Add a template name before saving.");
+      return;
+    }
+    if (!objective) {
+      setBanner("Add a template objective before saving.");
+      return;
+    }
+
+    const agents = parseTokenList(templateDraft.agentsText);
+    if (agents.length === 0) {
+      setBanner("Add at least one agent to the template.");
+      return;
+    }
+
+    const playbook = parseLineList(templateDraft.playbookText);
+    if (playbook.length === 0) {
+      setBanner("Add at least one playbook step to the template.");
+      return;
+    }
+
+    const approvals = parseTokenList(templateDraft.approvalsText);
+    const estCost = templateDraft.estCost.trim() || "$0.00";
+    const id =
+      templateDraft.id ??
+      `tpl-${Date.now()}-${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, "0")}`;
+
+    const nextTemplate: RunTemplate = {
+      id,
+      name,
+      objective,
+      agents,
+      approvals,
+      estCost,
+      playbook
+    };
+
+    setTemplates((prev) => {
+      if (templateDraft.mode === "edit" && templateDraft.id) {
+        return prev.map((template) => (template.id === templateDraft.id ? nextTemplate : template));
+      }
+      return [nextTemplate, ...prev];
+    });
+    setSelectedTemplateId(id);
+    setTemplateModalOpen(false);
+    setBanner(`Saved template “${name}”.`);
+  };
+
+  const deleteTemplate = (template: RunTemplate) => {
+    setTemplates((prev) => {
+      if (prev.length <= 1) {
+        setBanner("Keep at least one template in the library.");
+        return prev;
+      }
+      const next = prev.filter((item) => item.id !== template.id);
+      const nextSelected =
+        next.some((item) => item.id === selectedTemplateId) ? selectedTemplateId : next[0]?.id ?? "";
+      setSelectedTemplateId(nextSelected);
+      if (composerTemplateId === template.id) setComposerTemplateId("none");
+      setTemplateModalOpen(false);
+      setBanner(`Deleted template “${template.name}”.`);
+      return next;
+    });
+  };
+
+  const deleteEditingTemplate = () => {
+    if (!templateDraft.id) return;
+    const target = templates.find((template) => template.id === templateDraft.id);
+    if (!target) return;
+    deleteTemplate(target);
   };
 
   const handleRunAction = (run: Run, action: "pause" | "retry" | "cancel") => {
@@ -1210,6 +1451,8 @@ export default function App() {
         statusLabel={statusLabel}
         runSearch={runSearch}
         onRunSearchChange={setRunSearch}
+        runStatusFilter={runStatusFilter}
+        onRunStatusFilterChange={setRunStatusFilter}
         filteredRuns={filteredRuns}
         runStatusLabel={runStatusLabel}
         onQueueRun={() => queueRun({ source: "runs panel" })}
@@ -1244,6 +1487,7 @@ export default function App() {
           policy={policy}
           onOpenPolicy={() => {
             setVerifyEvidenceOpen(false);
+            setTemplateModalOpen(false);
             setPolicyOpen(true);
           }}
           onExportState={exportState}
@@ -1281,7 +1525,10 @@ export default function App() {
           onSelectTemplate={setSelectedTemplateId}
           selectedTemplate={selectedTemplate}
           onQueueTemplate={(template) => queueRun({ template })}
-          onNewTemplate={() => setBanner("Saved new playbook draft.")}
+          onNewTemplate={openNewTemplate}
+          onEditTemplate={openEditTemplate}
+          onDuplicateTemplate={openDuplicateTemplate}
+          onDeleteTemplate={deleteTemplate}
         />
       </section>
 
@@ -1342,6 +1589,17 @@ export default function App() {
           onClose={closeVerifyEvidence}
           result={verifyEvidenceResult}
           panelRef={verifyModalPanelRef}
+        />
+      ) : null}
+
+      {templateModalOpen ? (
+        <TemplateModal
+          draft={templateDraft}
+          setDraft={setTemplateDraft}
+          onClose={closeTemplateEditor}
+          onSave={saveTemplate}
+          onDelete={templateDraft.mode === "edit" ? deleteEditingTemplate : undefined}
+          panelRef={templateModalPanelRef}
         />
       ) : null}
 

@@ -1,10 +1,12 @@
-import type { Agent, AgentStatus, Run, RunStatus } from "../types";
+import type { Agent, AgentStatus, Run, RunStatus, RunStatusFilter } from "../types";
 
 type AgentsRunsSectionProps = {
   agents: Agent[];
   statusLabel: Record<AgentStatus, string>;
   runSearch: string;
   onRunSearchChange: (value: string) => void;
+  runStatusFilter: RunStatusFilter;
+  onRunStatusFilterChange: (value: RunStatusFilter) => void;
   filteredRuns: Run[];
   runStatusLabel: Record<RunStatus, string>;
   onQueueRun: () => void;
@@ -19,6 +21,8 @@ export default function AgentsRunsSection({
   statusLabel,
   runSearch,
   onRunSearchChange,
+  runStatusFilter,
+  onRunStatusFilterChange,
   filteredRuns,
   runStatusLabel,
   onQueueRun,
@@ -27,6 +31,15 @@ export default function AgentsRunsSection({
   getRunDurationLabel,
   getRunSlaBadge
 }: AgentsRunsSectionProps) {
+  const filters: { value: RunStatusFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "queued", label: runStatusLabel.queued },
+    { value: "running", label: runStatusLabel.running },
+    { value: "waiting", label: runStatusLabel.waiting },
+    { value: "failed", label: runStatusLabel.failed },
+    { value: "completed", label: runStatusLabel.completed }
+  ];
+
   return (
     <section className="grid">
       <div className="card">
@@ -42,9 +55,18 @@ export default function AgentsRunsSection({
             placeholder="Search runs, owners, statuses"
             aria-label="Search runs"
           />
-          <button className="ghost" type="button">
-            Filters
-          </button>
+        </div>
+        <div className="chip-row" role="group" aria-label="Run status filters">
+          {filters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              className={`chip ${runStatusFilter === filter.value ? "active" : ""}`}
+              onClick={() => onRunStatusFilterChange(filter.value)}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
         <div className="agent-list">
           {agents.map((agent) => (

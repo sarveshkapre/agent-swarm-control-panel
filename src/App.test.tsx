@@ -314,7 +314,7 @@ it("exports evidence with integrity metadata", async () => {
     };
   };
 
-  expect(payload.evidenceSchemaVersion).toBe(2);
+  expect(payload.evidenceSchemaVersion).toBe(3);
   expect(payload.integrity.computedAt).toEqual(expect.any(String));
   expect(["SHA-256", "none"]).toContain(payload.integrity.algorithm);
   if (payload.integrity.algorithm === "SHA-256") {
@@ -475,4 +475,102 @@ it("opens run details with recent logs and approvals", async () => {
   expect(within(dialog).getByText(/Execution/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Activity feed/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Kickoff briefing delivered/i)).toBeInTheDocument();
+});
+
+it("creates a new run template, persists it, and hydrates on reload", async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<App />);
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /New template/i }));
+  });
+
+  const modal = await screen.findByRole("dialog", { name: /New template/i });
+  await act(async () => {
+    await user.type(within(modal).getByLabelText(/^Name$/i), "Churn triage playbook");
+  });
+  await act(async () => {
+    await user.type(within(modal).getByLabelText(/^Objective$/i), "Triage churn spikes and ship fixes");
+  });
+  await act(async () => {
+    await user.type(within(modal).getByLabelText(/Agents/i), "Researcher, Coder, Tester");
+  });
+  await act(async () => {
+    await user.type(within(modal).getByLabelText(/Approvals/i), "External HTTP, Repo write");
+  });
+  await act(async () => {
+    await user.clear(within(modal).getByLabelText(/Est\. cost/i));
+    await user.type(within(modal).getByLabelText(/Est\. cost/i), "$8-12");
+  });
+  await act(async () => {
+    await user.type(
+      within(modal).getByLabelText(/Playbook steps/i),
+      "Collect signals\nIdentify drop-off point\nImplement fixes + tests\nExport evidence"
+    );
+  });
+
+  await act(async () => {
+    await user.click(within(modal).getByRole("button", { name: /Save template/i }));
+  });
+
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog", { name: /New template/i })).not.toBeInTheDocument();
+  });
+
+  const templatesCard = screen.getByText(/Run templates/i).closest(".card") as HTMLElement | null;
+  expect(templatesCard).not.toBeNull();
+  const templateGrid = templatesCard!.querySelector<HTMLElement>(".template-grid");
+  expect(templateGrid).not.toBeNull();
+  expect(within(templateGrid!).getByText(/^Churn triage playbook$/i)).toBeInTheDocument();
+
+  await waitFor(() => {
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "{}") as {
+      templates?: Array<{ name?: string }>;
+    };
+    expect(stored.templates?.some((tpl) => tpl.name === "Churn triage playbook")).toBe(true);
+  });
+
+  unmount();
+  render(<App />);
+  const templatesCardAfter = screen.getByText(/Run templates/i).closest(".card") as
+    | HTMLElement
+    | null;
+  expect(templatesCardAfter).not.toBeNull();
+  const templateGridAfter = templatesCardAfter!.querySelector<HTMLElement>(".template-grid");
+  expect(templateGridAfter).not.toBeNull();
+  expect(within(templateGridAfter!).getByText(/^Churn triage playbook$/i)).toBeInTheDocument();
+});
+
+it("filters runs by status via chips and persists the selection", async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<App />);
+
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+  expect(runList!.querySelectorAll(".run")).toHaveLength(3);
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^Running$/i }));
+  });
+
+  expect(runList!.querySelectorAll(".run")).toHaveLength(1);
+  expect(within(runList!).getByText(/r-114/i)).toBeInTheDocument();
+
+  await waitFor(() => {
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "{}") as {
+      runStatusFilter?: string;
+    };
+    expect(stored.runStatusFilter).toBe("running");
+  });
+
+  unmount();
+  render(<App />);
+  const runListAfter = document.querySelector<HTMLElement>(".run-list");
+  expect(runListAfter).not.toBeNull();
+  expect(runListAfter!.querySelectorAll(".run")).toHaveLength(1);
+  expect(within(runListAfter!).getByText(/r-114/i)).toBeInTheDocument();
+  const storedAfterReload = JSON.parse(window.localStorage.getItem(storageKey) ?? "{}") as {
+    runStatusFilter?: string;
+  };
+  expect(storedAfterReload.runStatusFilter).toBe("running");
 });
