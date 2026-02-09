@@ -7,9 +7,15 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P1` Add evidence-pack checksum verification flow in UI (paste/upload + digest validation).
+- [ ] `P0` Add evidence-pack checksum verification flow in UI (paste/upload + digest validation against `integrity.digest`).
+- [ ] `P0` Ensure `AGENTS.md`, `PROJECT_MEMORY.md`, and `INCIDENTS.md` are tracked and current (repo contract hygiene).
 - [ ] `P1` Add alert routing/escalation actions from run-health card (owner ping, pause policy, incident create).
-- [ ] `P2` Add integration sync health telemetry (last sync, error state, reconnect action) to Integration Hub.
+- [ ] `P1` Add integration sync health telemetry (last sync, error state, reconnect action) to Integration Hub.
+- [ ] `P1` Persist user-edited run templates/playbooks (CRUD + localStorage migration).
+- [ ] `P2` Add agent workload heatmap and SLA alerts (time-windowed load, blocked/waiting pressure).
+- [ ] `P2` Add run filtering chips (status/owner) and shareable deep-link to selected run/drawer.
+- [ ] `P2` Add evidence export viewer (schema/meta preview + copy-to-clipboard snippets).
+- [ ] `P2` Add lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
 
 ## Implemented
 - [x] `P0` Fix run creation bug for top-bar, runs-panel, and template queue actions.  
