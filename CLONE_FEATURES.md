@@ -12,7 +12,7 @@
 - [ ] `P2` Add shareable deep-link to selected run/approval drawers (URL state + copy link).
 - [ ] `P2` Add evidence export viewer (schema/meta preview + copy-to-clipboard snippets).
 - [ ] `P2` Add lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
-- [ ] `P2` Add template gallery actions: duplicate, delete, export/import templates as JSON (separate from full workspace state).
+- [ ] `P2` Add template import/export as JSON for sharing playbooks (separate from full workspace state).
 - [ ] `P3` Add run annotations + tags (operator notes) with tag-based filtering.
 - [ ] `P3` Add trace waterfall mock view in run details (spans + timing) to set observability baseline.
 
