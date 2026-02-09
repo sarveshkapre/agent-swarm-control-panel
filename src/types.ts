@@ -59,6 +59,7 @@ export type PolicySettings = {
   mode: string;
   sandbox: string;
   timeouts: string;
+  pauseNewRuns: boolean;
   requireCitations: boolean;
   allowExternal: boolean;
   allowRepoWrites: boolean;

@@ -125,6 +125,7 @@ const defaultPolicy: PolicySettings = {
   mode: "Approve-by-default",
   sandbox: "Workspace only",
   timeouts: "30m hard cap",
+  pauseNewRuns: false,
   requireCitations: true,
   allowExternal: false,
   allowRepoWrites: false,
@@ -273,6 +274,10 @@ function sanitizePolicy(value: unknown) {
     mode: typeof value.mode === "string" ? value.mode : defaultPolicy.mode,
     sandbox: typeof value.sandbox === "string" ? value.sandbox : defaultPolicy.sandbox,
     timeouts: typeof value.timeouts === "string" ? value.timeouts : defaultPolicy.timeouts,
+    pauseNewRuns:
+      typeof value.pauseNewRuns === "boolean"
+        ? value.pauseNewRuns
+        : defaultPolicy.pauseNewRuns,
     requireCitations:
       typeof value.requireCitations === "boolean"
         ? value.requireCitations
@@ -626,6 +631,10 @@ export default function App() {
       owner?: string;
       bannerMessage?: string;
     }) => {
+      if (policy.pauseNewRuns) {
+        setBanner("Queueing is paused (Emergency stop). Resume in Policy editor.");
+        return;
+      }
       const template = options?.template ?? null;
       const nextRun: Run = {
         id: `r-${Date.now()}-${Math.floor(Math.random() * 1000)
@@ -663,7 +672,7 @@ export default function App() {
           : "Queued a new swarm run. Approval required for external tools."
       );
     },
-    []
+    [policy.pauseNewRuns]
   );
 
   const overlayOpen =
@@ -1421,6 +1430,8 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
         onNewRun={() => queueRun({ source: "top bar" })}
+        queueingPaused={policy.pauseNewRuns}
+        onResumeQueueing={() => setPolicy((prev) => ({ ...prev, pauseNewRuns: false }))}
       />
 
       {banner ? <Banner message={banner} onDismiss={() => setBanner(null)} /> : null}
@@ -1456,6 +1467,7 @@ export default function App() {
         filteredRuns={filteredRuns}
         runStatusLabel={runStatusLabel}
         onQueueRun={() => queueRun({ source: "runs panel" })}
+        queueingPaused={policy.pauseNewRuns}
         onRunAction={handleRunAction}
         onViewDetails={setSelectedRun}
         getRunDurationLabel={getRunDurationLabel}
@@ -1509,6 +1521,7 @@ export default function App() {
           owner={composerOwner}
           templateId={composerTemplateId}
           templates={templates}
+          queueingPaused={policy.pauseNewRuns}
           onObjectiveChange={setComposerObjective}
           onOwnerChange={setComposerOwner}
           onTemplateChange={setComposerTemplateId}
@@ -1525,6 +1538,7 @@ export default function App() {
           onSelectTemplate={setSelectedTemplateId}
           selectedTemplate={selectedTemplate}
           onQueueTemplate={(template) => queueRun({ template })}
+          queueingPaused={policy.pauseNewRuns}
           onNewTemplate={openNewTemplate}
           onEditTemplate={openEditTemplate}
           onDuplicateTemplate={openDuplicateTemplate}

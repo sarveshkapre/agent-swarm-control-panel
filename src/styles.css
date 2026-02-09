@@ -323,6 +323,11 @@ select:focus-visible {
   color: #f4c67a;
 }
 
+.status-pill.emergency {
+  background: rgba(255, 139, 139, 0.18);
+  color: #ff8b8b;
+}
+
 .status-pill.planned,
 .status-pill.available,
 .status-pill.low {

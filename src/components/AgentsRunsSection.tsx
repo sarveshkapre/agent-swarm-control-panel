@@ -10,6 +10,7 @@ type AgentsRunsSectionProps = {
   filteredRuns: Run[];
   runStatusLabel: Record<RunStatus, string>;
   onQueueRun: () => void;
+  queueingPaused: boolean;
   onRunAction: (run: Run, action: "pause" | "retry" | "cancel") => void;
   onViewDetails: (run: Run) => void;
   getRunDurationLabel: (run: Run) => string;
@@ -26,6 +27,7 @@ export default function AgentsRunsSection({
   filteredRuns,
   runStatusLabel,
   onQueueRun,
+  queueingPaused,
   onRunAction,
   onViewDetails,
   getRunDurationLabel,
@@ -93,7 +95,12 @@ export default function AgentsRunsSection({
       <div className="card">
         <div className="card-header">
           <h2>Runs in progress</h2>
-          <button className="ghost" onClick={onQueueRun} type="button">
+          <button
+            className="ghost"
+            onClick={onQueueRun}
+            type="button"
+            disabled={queueingPaused}
+          >
             Queue run
           </button>
         </div>

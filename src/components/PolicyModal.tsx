@@ -157,6 +157,19 @@ export default function PolicyModal({
             <label className="toggle">
               <input
                 type="checkbox"
+                checked={policy.pauseNewRuns}
+                onChange={(event) =>
+                  setPolicy((prev) => ({
+                    ...prev,
+                    pauseNewRuns: event.target.checked
+                  }))
+                }
+              />
+              <span>Emergency stop (pause new runs)</span>
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
                 checked={policy.requireCitations}
                 onChange={(event) =>
                   setPolicy((prev) => ({

@@ -6,6 +6,7 @@ type RunTemplatesCardProps = {
   onSelectTemplate: (id: string) => void;
   selectedTemplate: RunTemplate | undefined;
   onQueueTemplate: (template: RunTemplate) => void;
+  queueingPaused: boolean;
   onNewTemplate: () => void;
   onEditTemplate: (template: RunTemplate) => void;
   onDuplicateTemplate: (template: RunTemplate) => void;
@@ -18,6 +19,7 @@ export default function RunTemplatesCard({
   onSelectTemplate,
   selectedTemplate,
   onQueueTemplate,
+  queueingPaused,
   onNewTemplate,
   onEditTemplate,
   onDuplicateTemplate,
@@ -86,7 +88,11 @@ export default function RunTemplatesCard({
               ))}
             </ol>
           </div>
-          <button className="primary" onClick={() => onQueueTemplate(selectedTemplate)}>
+          <button
+            className="primary"
+            onClick={() => onQueueTemplate(selectedTemplate)}
+            disabled={queueingPaused}
+          >
             Queue from template
           </button>
         </div>

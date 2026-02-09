@@ -6,6 +6,7 @@ type RunComposerCardProps = {
   owner: string;
   templateId: string;
   templates: Pick<RunTemplate, "id" | "name">[];
+  queueingPaused: boolean;
   onObjectiveChange: (value: string) => void;
   onOwnerChange: (value: string) => void;
   onTemplateChange: (value: string) => void;
@@ -18,6 +19,7 @@ export default function RunComposerCard({
   owner,
   templateId,
   templates,
+  queueingPaused,
   onObjectiveChange,
   onOwnerChange,
   onTemplateChange,
@@ -72,7 +74,7 @@ export default function RunComposerCard({
           </div>
         </div>
         <div className="composer-actions">
-          <button className="primary" type="submit">
+          <button className="primary" type="submit" disabled={queueingPaused}>
             Queue run
           </button>
           <button className="ghost" type="button" onClick={onReset}>

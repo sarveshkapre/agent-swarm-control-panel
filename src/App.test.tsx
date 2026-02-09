@@ -142,6 +142,41 @@ it("traps focus inside the policy modal and restores focus on close", async () =
   await waitFor(() => expect(openPolicy).toHaveFocus());
 });
 
+it("pauses queueing via the emergency stop policy and blocks shortcut queue actions", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const openPolicy = screen.getByRole("button", { name: /Open policy editor/i });
+  fireEvent.click(openPolicy);
+
+  const modal = await screen.findByRole("dialog", { name: /Policy editor/i });
+  const emergencyStopToggle = within(modal).getByLabelText(/Emergency stop/i);
+  await act(async () => {
+    await user.click(emergencyStopToggle);
+  });
+  expect(emergencyStopToggle).toBeChecked();
+
+  await act(async () => {
+    await user.click(within(modal).getByRole("button", { name: /Save policy/i }));
+  });
+
+  const newRun = screen.getByRole("button", { name: /^New run$/i });
+  expect(newRun).toBeDisabled();
+  expect(screen.getByText(/Emergency stop/i)).toBeInTheDocument();
+
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+  const beforeCount = within(runList!).getAllByRole("article").length;
+
+  fireEvent.keyDown(window, { key: "n" });
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Queueing is paused/i);
+  });
+
+  const afterCount = within(runList!).getAllByRole("article").length;
+  expect(afterCount).toBe(beforeCount);
+});
+
 it("queues a run from the composer and shows it in the list", async () => {
   render(<App />);
 
