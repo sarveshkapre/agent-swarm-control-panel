@@ -1,5 +1,37 @@
 # Project Memory
 
+## Entry: 2026-02-09 (Global Cycle 4)
+- Decision: Prioritize operator control-loop actions (emergency stop + escalation drafts) and integration sync trust signals before adding new dashboards.
+- Why: The panel already surfaces at-risk runs, but lacked the immediate actions operators expect (pause, notify, draft incident). Integrations also showed “connected” without any sync-health, reducing trust in operational readiness.
+- Bounded market scan (untrusted external synthesis, references):
+  - PagerDuty incident response concepts (incidents + escalation): https://www.pagerduty.com/resources/learn/incident-response/
+  - Sentry alerting concepts (alerts/rules as baseline operator workflow): https://docs.sentry.io/product/alerts/
+  - Honeycomb tracing/observability primitives (trace-driven triage expectations): https://www.honeycomb.io/
+  - Langfuse tracing docs (run history + drill-down as baseline): https://langfuse.com/docs
+- Gap map:
+  Missing: deep-linkable run/approval drawers and a first-class evidence viewer beyond JSON download.
+  Weak: integrations lacked sync-health telemetry and had no reconnect CTA; run health had no one-click escalation actions.
+  Parity: evidence exports + checksum verification, run SLA badges, templates/playbooks, and local state import/export.
+  Differentiator opportunity: local-first control-plane with compliance-grade evidence handoff plus operator-ready incident drafts.
+- Candidate scoring (selected items first):
+  1) Emergency stop (pause new runs) (Impact 9, Effort 2, Fit 9, Diff 6, Risk 2, Confidence 9).
+  2) Run-health escalation actions (copy owner ping/incident draft + pause/resume) (Impact 8, Effort 3, Fit 9, Diff 5, Risk 3, Confidence 8).
+  3) Integration sync health telemetry + persistence (Impact 7, Effort 4, Fit 8, Diff 4, Risk 3, Confidence 7).
+- Shipped:
+  1) Emergency stop toggle in policy editor that disables queue CTAs and blocks shortcut queueing.
+  2) Run-health escalation actions: pause/resume queueing plus copy-to-clipboard drafts for owner pings and incident tickets.
+  3) Integration Hub now shows sync health (state + last sync), supports reconnect, and persists integration state via localStorage + state export/import.
+- Verification evidence (local):
+  - `npm run check` (pass).
+  - Smoke (pass): `set -euo pipefail; (npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/agent-swarm-dev.log 2>&1 & echo $! > /tmp/agent-swarm-dev.pid); sleep 2; curl -sSf http://127.0.0.1:4173/ > /tmp/agent-swarm-dev.curl.html; kill $(cat /tmp/agent-swarm-dev.pid)`
+- Mistakes and fixes:
+  - Root cause: clipboard behavior differs across jsdom/browser environments; an overly strict test asserted clipboard internals rather than user-visible outcomes.
+  - Fix: assert banner-driven outcomes and rely on a safe `document.execCommand` fallback in tests.
+  - Prevention rule: prefer user-observable assertions for clipboard/permissioned APIs; mock at module boundary only when necessary.
+- Commits: `7299de2`, `402c4bb`, `76f9b2e`, `0244847`.
+- Confidence: high.
+- Trust label: `verified-local` for code/tests/smoke/commands, `external-docs` for market scan synthesis.
+
 ## Entry: 2026-02-09 (Global Cycle 3)
 - Decision: Prioritize saved playbooks (template CRUD + persistence) and faster run triage (status chips) before adding new dashboards.
 - Why: Adjacent control-plane tools treat repeatable run definitions and quick run-history filtering as baseline UX; without saved templates and basic triage controls, the panel reads as demo-only.

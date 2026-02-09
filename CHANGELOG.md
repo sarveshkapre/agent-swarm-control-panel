@@ -18,6 +18,8 @@
 - Evidence pack verification modal (paste/upload + checksum validation).
 - Template editor modal (create/edit/duplicate/delete) with local persistence.
 - Run status filter chips for fast triage (persisted locally).
+- Emergency stop policy toggle to pause new run queueing (disables queue CTAs and blocks shortcut queueing).
+- Run-health escalation actions (pause/resume queueing, copy owner ping draft, copy incident draft).
 - Run composer for queuing local runs (optional template).
 - Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 - Run detail drawer with recent logs and approvals.
@@ -26,6 +28,7 @@
 - Per-run activity feed with key events.
 - Growth momentum dashboard with outcome scorecard, activation loops, integration launchpad, and feedback radar.
 - Run health summary card (at-risk runs, approvals pending, error count, spend-at-risk estimate).
+- Integration Hub sync health telemetry (sync state + last sync time) with reconnect action and persisted integration state.
 - Regression tests for quick queue actions, template queueing, and run health summary rendering.
 - GitHub Actions workflow hardening with explicit job timeouts and manual dispatch support.
 - Evidence export integrity metadata (`evidenceSchemaVersion`, SHA-256 digest, checksum timestamp).
