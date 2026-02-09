@@ -302,6 +302,34 @@ it("copies escalation drafts from the run health summary card", async () => {
   });
 });
 
+it("persists integration sync health when connecting and hydrates on reload", async () => {
+  const { unmount } = render(<App />);
+
+  const user = userEvent.setup();
+  const linear = screen.getByText("Linear").closest("li");
+  expect(linear).not.toBeNull();
+
+  await act(async () => {
+    await user.click(within(linear as HTMLElement).getByRole("button", { name: /^Connect$/i }));
+  });
+
+  await waitFor(() => {
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "{}") as {
+      integrationOptions?: { id: string; status: string; sync?: { lastSyncAtIso?: string | null } }[];
+    };
+    const match = stored.integrationOptions?.find((item) => item.id === "int-2");
+    expect(match?.status).toBe("connected");
+    expect(match?.sync?.lastSyncAtIso).toEqual(expect.any(String));
+  });
+
+  unmount();
+  render(<App />);
+
+  const linearReloaded = screen.getByText("Linear").closest("li");
+  expect(linearReloaded).not.toBeNull();
+  expect(within(linearReloaded as HTMLElement).getByRole("button", { name: /Connected/i })).toBeDisabled();
+});
+
 it("confirms run actions via toast and updates status", async () => {
   render(<App />);
 

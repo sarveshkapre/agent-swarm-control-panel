@@ -220,7 +220,12 @@ export const integrationOptions: IntegrationOption[] = [
     category: "Comms",
     status: "connected",
     description: "Approval routing + run highlights.",
-    benefit: "Saves 2.4h/week on updates."
+    benefit: "Saves 2.4h/week on updates.",
+    sync: {
+      state: "healthy",
+      lastSyncAtIso: "2026-02-09T04:40:00.000Z",
+      lastError: null
+    }
   },
   {
     id: "int-2",
@@ -228,7 +233,12 @@ export const integrationOptions: IntegrationOption[] = [
     category: "Planning",
     status: "available",
     description: "Create issues from agent findings.",
-    benefit: "Keeps execution in one backlog."
+    benefit: "Keeps execution in one backlog.",
+    sync: {
+      state: "disconnected",
+      lastSyncAtIso: null,
+      lastError: null
+    }
   },
   {
     id: "int-3",
@@ -236,7 +246,12 @@ export const integrationOptions: IntegrationOption[] = [
     category: "Docs",
     status: "available",
     description: "Publish evidence packs and briefs.",
-    benefit: "One-click stakeholder sharing."
+    benefit: "One-click stakeholder sharing.",
+    sync: {
+      state: "disconnected",
+      lastSyncAtIso: null,
+      lastError: null
+    }
   },
   {
     id: "int-4",
@@ -244,7 +259,12 @@ export const integrationOptions: IntegrationOption[] = [
     category: "Automation",
     status: "beta",
     description: "Trigger workflows from run events.",
-    benefit: "Connect 5,000+ tools."
+    benefit: "Connect 5,000+ tools.",
+    sync: {
+      state: "disconnected",
+      lastSyncAtIso: null,
+      lastError: null
+    }
   }
 ];
 

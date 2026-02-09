@@ -341,6 +341,16 @@ select:focus-visible {
   color: #7ad0ff;
 }
 
+.status-pill.muted {
+  background: rgba(148, 163, 184, 0.18);
+  color: rgba(244, 244, 247, 0.7);
+}
+
+:root[data-theme="light"] .status-pill.muted {
+  background: rgba(148, 163, 184, 0.25);
+  color: rgba(15, 23, 42, 0.75);
+}
+
 .loop,
 .integration,
 .signal {

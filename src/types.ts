@@ -115,6 +115,11 @@ export type IntegrationOption = {
   status: "connected" | "available" | "beta";
   description: string;
   benefit: string;
+  sync: {
+    state: "healthy" | "stale" | "error" | "disconnected";
+    lastSyncAtIso: string | null;
+    lastError: string | null;
+  };
 };
 
 export type FeedbackSignal = {
@@ -161,6 +166,7 @@ export type StoredState = {
   policy: PolicySettings;
   spikeAlerts: SpikeAlerts;
   logBudget: LogBudget;
+  integrationOptions: IntegrationOption[];
   templates: RunTemplate[];
   selectedTemplateId: string;
 };

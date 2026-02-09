@@ -15,6 +15,7 @@ import type {
   Approval,
   LogLevelFilter,
   LogBudget,
+  IntegrationOption,
   PolicySettings,
   Run,
   RunActivity,
@@ -332,6 +333,47 @@ function sanitizeSpikeAlerts(value: unknown): SpikeAlerts {
   return { enabled, windowMinutes, threshold };
 }
 
+function isIntegrationStatus(value: unknown): value is IntegrationOption["status"] {
+  return value === "connected" || value === "available" || value === "beta";
+}
+
+function isIntegrationSyncState(value: unknown): value is IntegrationOption["sync"]["state"] {
+  return (
+    value === "healthy" ||
+    value === "stale" ||
+    value === "error" ||
+    value === "disconnected"
+  );
+}
+
+function sanitizeIntegrationOption(value: unknown): IntegrationOption | null {
+  if (!isObjectRecord(value)) return null;
+  const syncRaw = isObjectRecord(value.sync) ? value.sync : null;
+  const sync: IntegrationOption["sync"] = {
+    state: isIntegrationSyncState(syncRaw?.state) ? syncRaw!.state : "disconnected",
+    lastSyncAtIso: isIsoTimestamp(syncRaw?.lastSyncAtIso) ? syncRaw!.lastSyncAtIso : null,
+    lastError: typeof syncRaw?.lastError === "string" ? syncRaw!.lastError : null
+  };
+  const integration: IntegrationOption = {
+    id: typeof value.id === "string" ? value.id : "",
+    name: typeof value.name === "string" ? value.name : "",
+    category: typeof value.category === "string" ? value.category : "",
+    status: isIntegrationStatus(value.status) ? value.status : "available",
+    description: typeof value.description === "string" ? value.description : "",
+    benefit: typeof value.benefit === "string" ? value.benefit : "",
+    sync
+  };
+  if (!integration.id || !integration.name || !integration.category) return null;
+  return integration;
+}
+
+function sanitizeIntegrationList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((integration) => sanitizeIntegrationOption(integration))
+    .filter((integration): integration is IntegrationOption => integration !== null);
+}
+
 function sanitizeStoredState(value: unknown): Partial<StoredState> | null {
   if (!isObjectRecord(value)) return null;
   return {
@@ -349,6 +391,7 @@ function sanitizeStoredState(value: unknown): Partial<StoredState> | null {
     policy: sanitizePolicy(value.policy),
     spikeAlerts: sanitizeSpikeAlerts(value.spikeAlerts),
     logBudget: sanitizeLogBudget(value.logBudget),
+    integrationOptions: sanitizeIntegrationList(value.integrationOptions),
     templates: sanitizeTemplateList(value.templates),
     selectedTemplateId:
       typeof value.selectedTemplateId === "string" ? value.selectedTemplateId : undefined
@@ -606,9 +649,10 @@ export default function App() {
     playbookText: ""
   }));
   const [activationLoops, setActivationLoops] = useState(() => defaultActivationLoops);
-  const [integrationOptions, setIntegrationOptions] = useState(
-    () => defaultIntegrationOptions
-  );
+  const [integrationOptions, setIntegrationOptions] = useState<IntegrationOption[]>(() => {
+    const stored = initialStoredState?.integrationOptions;
+    return stored && stored.length > 0 ? stored : defaultIntegrationOptions;
+  });
   const [feedbackSignals, setFeedbackSignals] = useState(() => defaultFeedbackSignals);
   const [autoApproveRisk, setAutoApproveRisk] = useState<Approval["risk"]>("medium");
   const [composerObjective, setComposerObjective] = useState("");
@@ -801,6 +845,7 @@ export default function App() {
       policy,
       spikeAlerts,
       logBudget,
+      integrationOptions,
       templates,
       selectedTemplateId
     };
@@ -818,6 +863,7 @@ export default function App() {
     policy,
     spikeAlerts,
     logBudget,
+    integrationOptions,
     templates,
     selectedTemplateId
   ]);
@@ -1151,6 +1197,7 @@ export default function App() {
       policy,
       spikeAlerts,
       logBudget,
+      integrationOptions,
       templates,
       selectedTemplateId
     };
@@ -1179,6 +1226,11 @@ export default function App() {
       setPolicy(parsed.policy ?? defaultPolicy);
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
       setLogBudget(parsed.logBudget ?? defaultLogBudget);
+      const nextIntegrations =
+        parsed.integrationOptions && parsed.integrationOptions.length > 0
+          ? parsed.integrationOptions
+          : defaultIntegrationOptions;
+      setIntegrationOptions(nextIntegrations);
       const nextTemplates =
         parsed.templates && parsed.templates.length > 0 ? parsed.templates : defaultTemplates;
       setTemplates(nextTemplates);
@@ -1449,7 +1501,38 @@ export default function App() {
       return prev.map((integration) => {
         if (integration.id !== id) return integration;
         if (integration.status === "connected") return integration;
-        return { ...integration, status: "connected" };
+        const now = new Date().toISOString();
+        return {
+          ...integration,
+          status: "connected",
+          sync: {
+            state: "healthy",
+            lastSyncAtIso: now,
+            lastError: null
+          }
+        };
+      });
+    });
+  };
+
+  const reconnectIntegration = (id: string) => {
+    setIntegrationOptions((prev) => {
+      const target = prev.find((integration) => integration.id === id);
+      if (target) {
+        setBanner(`Reconnected ${target.name}. Sync restarted.`);
+      }
+      const now = new Date().toISOString();
+      return prev.map((integration) => {
+        if (integration.id !== id) return integration;
+        return {
+          ...integration,
+          status: "connected",
+          sync: {
+            state: "healthy",
+            lastSyncAtIso: now,
+            lastError: null
+          }
+        };
       });
     });
   };
@@ -1522,6 +1605,7 @@ export default function App() {
         <IntegrationHubCard
           integrations={integrationOptions}
           onConnect={connectIntegration}
+          onReconnect={reconnectIntegration}
         />
         <FeedbackPulseCard signals={feedbackSignals} onBoost={boostSignal} />
       </section>
