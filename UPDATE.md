@@ -3,9 +3,12 @@
 ## What changed
 - Added evidence-export integrity metadata with schema versioning and SHA-256 checksums.
 - Added an evidence-pack verification modal (paste/upload JSON, validate checksum match).
+- Added a template editor (create/edit/duplicate/delete) with local persistence (templates included in workspace state export/import).
+- Added run status filter chips (All/Queued/Running/Waiting/Failed/Completed) for faster triage.
 - Replaced static run-duration seed mapping with timestamp/event-derived duration calculations for SLA badges.
 - Hardened local state hydration/import with runtime sanitization for runs, statuses, policy, and budget fields.
-- Added regression tests for evidence integrity exports and malformed import sanitization (suite now `15` tests).
+- Expanded evidence export payload to include saved templates + selected template context (schema bumped to `3`).
+- Added regression tests for template CRUD + run status filters (suite now `17` tests).
 - Upgraded toolchain to `vite@6.4.1` and `vitest@4.0.18`; `npm audit --audit-level=moderate` now reports zero vulnerabilities.
 - Re-checked historical CI failures from `2026-02-02`: all were cancelled jobs with empty steps, not reproducible code failures.
 
@@ -14,8 +17,10 @@
 - `npm audit --audit-level=moderate`
 - Local smoke: `npm run dev -- --host 127.0.0.1 --port 4173` then `curl -sSf http://127.0.0.1:4173/`
 - In UI:
-  - Click `Export` under `Live logs`; inspect JSON and confirm `evidenceSchemaVersion` and `integrity.digest` are present.
+  - Click `Export` under `Live logs`; inspect JSON and confirm `evidenceSchemaVersion`, `integrity.digest`, and `templates` are present.
   - Click `Verify` under `Live logs`, paste the exported JSON (or upload the file), then confirm the modal reports `VERIFIED`.
+  - Click `New template` under `Run templates`, save a new playbook, then refresh and confirm it persists.
+  - Click status chips under `Active agents` and confirm the runs list filters accordingly (and survives refresh).
   - Import a malformed state JSON and confirm the app still loads without invalid runs/status overrides.
   - Verify `Duration` and SLA pills update from run timestamp/event context instead of fixed seed values.
 

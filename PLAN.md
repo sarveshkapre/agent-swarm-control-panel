@@ -10,19 +10,16 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Local persistence (localStorage), keyboard shortcuts, light/dark theme
 
 ## Shipped (this run)
-- Fixed state hydration so localStorage state no longer gets overwritten on initial mount.
-- Hardened import/export + log streaming interval lifecycle; added focused regression tests.
-- Added focus trap + focus restore for drawer and policy modal.
-- Added a run composer to queue local runs with optional templates.
-- Split `src/App.tsx` into focused components for maintainability.
-- Added per-run actions with confirmation toasts.
-- Added a run detail drawer with recent logs and approvals.
-- Added SLA badges and duration tracking for runs.
-- Added a run phase timeline to the run detail drawer.
-- Added per-run activity feed with key events.
+- Evidence export integrity metadata + checksum verification modal.
+- Run health summary + run detail drawer (timeline, activity feed, approvals, recent logs).
+- Template editor modal with persisted templates/playbooks (CRUD).
+- Run status filter chips for fast triage.
 
 ## Next to ship
-- Add a run health summary (errors, approvals pending, budget).
+- Integration sync health telemetry (last sync, error state, reconnect CTA).
+- Escalation actions from run health (ping owner, incident draft, pause policy).
+- Shareable deep-links to run/approval drawers for incident handoff.
+- Evidence export viewer (schema/meta preview + copy snippets).
 
 ## Top risks / unknowns
 - Scope creep without a real backend runtime adapter.

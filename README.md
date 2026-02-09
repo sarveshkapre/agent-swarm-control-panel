@@ -37,7 +37,7 @@ docker run -p 4173:4173 agent-swarm-control-panel
 ```
 
 ## Status
-MVP UI with approvals drawer, policy editor, log filters/pinning, growth momentum dashboard, run health summary, and local state import/export. Evidence exports now include SHA-256 integrity metadata, and run-duration/SLA badges are computed from run timestamps/event data (not static seeds). No authentication (local-only).
+MVP UI with approvals drawer, policy editor, log filters/pinning, growth momentum dashboard, run health summary, saved run templates/playbooks (CRUD, local-only), and local state import/export. Evidence exports include SHA-256 integrity metadata, and run-duration/SLA badges are computed from run timestamps/event data (not static seeds). No authentication (local-only).
 
 ## Screenshots
 Add screenshots/GIFs after the first UI pass.

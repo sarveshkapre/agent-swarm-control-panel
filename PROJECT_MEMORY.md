@@ -1,5 +1,36 @@
 # Project Memory
 
+## Entry: 2026-02-09 (Global Cycle 3)
+- Decision: Prioritize saved playbooks (template CRUD + persistence) and faster run triage (status chips) before adding new dashboards.
+- Why: Adjacent control-plane tools treat repeatable run definitions and quick run-history filtering as baseline UX; without saved templates and basic triage controls, the panel reads as demo-only.
+- Bounded market scan (untrusted external synthesis, references):
+  - Langfuse (open source) centers tracing/observability, implying baseline expectations like run history + drill-down: https://langfuse.com/
+  - Helicone emphasizes request logging/monitoring/debugging for AI apps, reinforcing “searchable history + health signals”: https://www.helicone.ai/features/monitoring-and-debugging
+  - Arize Phoenix markets LLM tracing/monitoring/evals as a standard observability layer: https://arize.com/docs/phoenix
+  - PromptLayer highlights prompt tracking/logging/analytics as workflow plumbing: https://docs.promptlayer.com/
+- Gap map:
+  Missing: persisted playbooks/templates (create/edit/delete) and basic triage filters beyond free-text search.
+  Weak: integration “connected” state lacks sync-health (last sync, errors, reconnect CTA).
+  Parity: evidence exports/checksum verification, run details, health snapshot, and approvals drawer are in place.
+  Differentiator opportunity: local-first “compliance-grade” playbook + evidence handoff (templates included in evidence packs).
+- Candidate scoring (selected items first):
+  1) Template CRUD + persistence (Impact 9, Effort 4, Fit 9, Diff 6, Risk 3, Confidence 8).
+  2) Status filter chips for runs (Impact 7, Effort 2, Fit 8, Diff 3, Risk 2, Confidence 9).
+  3) Integration sync health telemetry (Impact 6, Effort 3, Fit 7, Diff 3, Risk 2, Confidence 7).
+- Shipped:
+  1) Template editor modal with create/edit/duplicate/delete and local persistence (templates stored in workspace state export/import).
+  2) Run status filter chips (All/Queued/Running/Waiting/Failed/Completed) persisted in local state.
+  3) Evidence export now includes templates + selected template context; evidence schema bumped to `3` to reflect the expanded payload.
+- Verification evidence (local):
+  - `npm run check` (pass).
+  - Smoke (pass): `set -euo pipefail; (npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/agent-swarm-dev.log 2>&1 & echo $! > /tmp/agent-swarm-dev.pid); sleep 2; curl -sSf http://127.0.0.1:4173/ > /tmp/agent-swarm-dev.curl.html; kill $(cat /tmp/agent-swarm-dev.pid)`
+- Follow-ups:
+  1. Shareable deep-links to open run/approval drawers.
+  2. Escalation actions from run health summary (incident draft, ping owner).
+- Commit: `3ef1f8c`.
+- Confidence: high.
+- Trust label: `verified-local` for code/tests/smoke, `external-docs` for market scan synthesis.
+
 ## Entry: 2026-02-09 (Global Cycle 2)
 - Decision: Prioritize operator trust and reliability over new surface-area features.
 - Why: Market baseline from LangSmith/Langfuse/AgentOps/Weave emphasizes observable traces, trustworthy exports, and safe runtime controls; this repo still had weak evidence integrity and unsafe import handling.

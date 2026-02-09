@@ -11,6 +11,6 @@
 - Release: `make release`
 
 ## Next 3 improvements
-1. Add log streaming with real-time agent events and pause/resume controls.
-2. Add approval policy simulation with configurable rules and diffs.
-3. Add playbook builder with saved templates and drag-and-drop steps.
+1. Add integration sync health telemetry (last sync, errors, reconnect action).
+2. Add escalation actions from run health (ping owner, pause policy, incident draft).
+3. Add shareable deep-links to run/approval drawers for handoff.

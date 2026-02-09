@@ -16,6 +16,8 @@
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
 - Regression tests for drawer/modal focus management.
 - Evidence pack verification modal (paste/upload + checksum validation).
+- Template editor modal (create/edit/duplicate/delete) with local persistence.
+- Run status filter chips for fast triage (persisted locally).
 - Run composer for queuing local runs (optional template).
 - Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 - Run detail drawer with recent logs and approvals.
@@ -27,6 +29,7 @@
 - Regression tests for quick queue actions, template queueing, and run health summary rendering.
 - GitHub Actions workflow hardening with explicit job timeouts and manual dispatch support.
 - Evidence export integrity metadata (`evidenceSchemaVersion`, SHA-256 digest, checksum timestamp).
+- Evidence export now includes saved templates and selected template context (schema bumped to `3`).
 - Regression tests for evidence integrity export and malformed state import sanitization.
 
 ### Security

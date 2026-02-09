@@ -7,15 +7,22 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P1` Add alert routing/escalation actions from run-health card (owner ping, pause policy, incident create).
+- [ ] `P1` Add alert routing/escalation actions from run-health card (owner ping, pause policy, incident create draft).
 - [ ] `P1` Add integration sync health telemetry (last sync, error state, reconnect action) to Integration Hub.
-- [ ] `P1` Persist user-edited run templates/playbooks (CRUD + localStorage migration).
-- [ ] `P2` Add agent workload heatmap and SLA alerts (time-windowed load, blocked/waiting pressure).
-- [ ] `P2` Add run filtering chips (status/owner) and shareable deep-link to selected run/drawer.
+- [ ] `P2` Add shareable deep-link to selected run/approval drawers (URL state + copy link).
 - [ ] `P2` Add evidence export viewer (schema/meta preview + copy-to-clipboard snippets).
 - [ ] `P2` Add lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
+- [ ] `P2` Add template gallery actions: duplicate, delete, export/import templates as JSON (separate from full workspace state).
+- [ ] `P3` Add run annotations + tags (operator notes) with tag-based filtering.
+- [ ] `P3` Add trace waterfall mock view in run details (spans + timing) to set observability baseline.
 
 ## Implemented
+- [x] `P0` Persist user-edited run templates/playbooks (CRUD + localStorage persistence + state export/import).  
+  Date: 2026-02-09  
+  Evidence: `src/App.tsx`, `src/components/TemplateModal.tsx`, `src/components/RunTemplatesCard.tsx`, `src/types.ts`, `src/App.test.tsx`
+- [x] `P1` Add run filtering chips (status) + persist selection for fast triage.  
+  Date: 2026-02-09  
+  Evidence: `src/components/AgentsRunsSection.tsx`, `src/App.tsx`, `src/styles.css`, `src/types.ts`, `src/App.test.tsx`
 - [x] `P0` Fix run creation bug for top-bar, runs-panel, and template queue actions.  
   Date: 2026-02-08  
   Evidence: `src/App.tsx`, `src/App.test.tsx`
@@ -67,7 +74,7 @@
 - Highest-impact product issue was queue-action trust: multiple CTA buttons claimed to queue work but did not mutate run state.
 - Evidence export quality matters for operator trust; exporting only seed runs hid queued/overridden live state.
 - Bounded market scan indicates baseline expectations include trace observability, replay/debug context, and operational monitoring; checksum-backed exports align with trust/compliance expectations.
-- Gap map after 2026-02-09: escalation workflows and integration sync observability are still weak; saved templates/playbooks are still missing.
+- Gap map after 2026-02-09: escalation workflows, integration sync observability, and deep-link handoffs remain weak.
 
 ## Notes
 - This file is maintained by the autonomous clone loop.
