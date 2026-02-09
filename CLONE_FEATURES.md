@@ -7,9 +7,9 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P1` Upgrade build toolchain to patched Vite/esbuild line once a no-regression path is confirmed (`npm audit` currently reports moderate dev-server advisory).
-- [ ] `P1` Add integrity signing/checksum metadata for exported evidence packs.
-- [ ] `P2` Replace static `runDurationMinutes` seed map with event-derived duration tracking.
+- [ ] `P1` Add evidence-pack checksum verification flow in UI (paste/upload + digest validation).
+- [ ] `P1` Add alert routing/escalation actions from run-health card (owner ping, pause policy, incident create).
+- [ ] `P2` Add integration sync health telemetry (last sync, error state, reconnect action) to Integration Hub.
 
 ## Implemented
 - [x] `P0` Fix run creation bug for top-bar, runs-panel, and template queue actions.  
@@ -30,11 +30,31 @@
 - [x] `P1` Align docs with shipped behavior and verification paths.  
   Date: 2026-02-08  
   Evidence: `README.md`, `CHANGELOG.md`, `UPDATE.md`
+- [x] `P0` Add evidence-pack integrity metadata with schema versioning + SHA-256 digest.  
+  Date: 2026-02-09  
+  Evidence: `src/utils/evidence.ts`, `src/App.tsx`, `src/App.test.tsx`
+- [x] `P0` Harden imported/hydrated local state with runtime sanitization and safe fallbacks.  
+  Date: 2026-02-09  
+  Evidence: `src/App.tsx`, `src/types.ts`, `src/App.test.tsx`
+- [x] `P1` Replace static run-duration seed map with timestamp/event-derived tracking.  
+  Date: 2026-02-09  
+  Evidence: `src/utils/runInsights.ts`, `src/data/mockData.ts`, `src/App.tsx`
+- [x] `P1` Upgrade toolchain to non-vulnerable Vite/esbuild path and verify no regressions.  
+  Date: 2026-02-09  
+  Evidence: `package.json`, `package-lock.json`, `npm audit --audit-level=moderate` (0 vulnerabilities)
+- [x] `P2` Persist cycle memory and incident prevention docs.  
+  Date: 2026-02-09  
+  Evidence: `PROJECT_MEMORY.md`, `INCIDENTS.md`
+- [x] `P2` Refresh docs for cycle-2 behavior and verification evidence.  
+  Date: 2026-02-09  
+  Evidence: `README.md`, `CHANGELOG.md`, `UPDATE.md`
 
 ## Insights
 - The recent CI and CodeQL failures (`2026-02-02`) were cancelled jobs with no executable log steps, not reproducible code/test regressions.
 - Highest-impact product issue was queue-action trust: multiple CTA buttons claimed to queue work but did not mutate run state.
 - Evidence export quality matters for operator trust; exporting only seed runs hid queued/overridden live state.
+- Bounded market scan indicates baseline expectations include trace observability, replay/debug context, and operational monitoring; checksum-backed exports align with trust/compliance expectations.
+- Gap map after cycle-2: missing checksum verification flow, weak escalation workflows, and weak integration sync observability.
 
 ## Notes
 - This file is maintained by the autonomous clone loop.

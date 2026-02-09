@@ -1,3 +1,25 @@
+# Update (2026-02-09)
+
+## What changed
+- Added evidence-export integrity metadata with schema versioning and SHA-256 checksums.
+- Replaced static run-duration seed mapping with timestamp/event-derived duration calculations for SLA badges.
+- Hardened local state hydration/import with runtime sanitization for runs, statuses, policy, and budget fields.
+- Added regression tests for evidence integrity exports and malformed import sanitization (suite now `14` tests).
+- Upgraded toolchain to `vite@6.4.1` and `vitest@4.0.18`; `npm audit --audit-level=moderate` now reports zero vulnerabilities.
+- Re-checked historical CI failures from `2026-02-02`: all were cancelled jobs with empty steps, not reproducible code failures.
+
+## How to verify
+- `make check`
+- `npm audit --audit-level=moderate`
+- Local smoke: `npm run dev -- --host 127.0.0.1 --port 4173` then `curl -sSf http://127.0.0.1:4173/`
+- In UI:
+  - Click `Export` under `Live logs`; inspect JSON and confirm `evidenceSchemaVersion` and `integrity.digest` are present.
+  - Import a malformed state JSON and confirm the app still loads without invalid runs/status overrides.
+  - Verify `Duration` and SLA pills update from run timestamp/event context instead of fixed seed values.
+
+## Shipping
+- Shipped directly to `main` (no PR).
+
 # Update (2026-02-08)
 
 ## What changed

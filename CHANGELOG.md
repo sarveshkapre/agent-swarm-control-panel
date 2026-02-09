@@ -5,10 +5,12 @@
 - Prevent localStorage-backed UI state from being clobbered on first render.
 - Make log streaming interval lifecycle robust (no duplicate intervals / leaks).
 - Harden JSON import/export paths and error handling.
+- Sanitize imported/hydrated local state with runtime shape checks to avoid invalid run/status payloads.
 - Trap focus within overlays, restore focus on close, and disable background scroll.
 - Split the main dashboard view into modular components.
 - Ensure `New run`, `Queue run`, and `Queue from template` actions create real queued runs.
 - Improve evidence export to include live run state and health summary instead of seed-only run data.
+- Replace static run-duration seed values with timestamp/event-derived duration tracking.
 
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
@@ -23,6 +25,11 @@
 - Run health summary card (at-risk runs, approvals pending, error count, spend-at-risk estimate).
 - Regression tests for quick queue actions, template queueing, and run health summary rendering.
 - GitHub Actions workflow hardening with explicit job timeouts and manual dispatch support.
+- Evidence export integrity metadata (`evidenceSchemaVersion`, SHA-256 digest, checksum timestamp).
+- Regression tests for evidence integrity export and malformed state import sanitization.
+
+### Security
+- Upgrade toolchain to `vite@6.4.1` + `vitest@4.0.18` to clear the esbuild/vite advisory reported by `npm audit`.
 
 ## [0.1.0] - 2026-02-01
 ### Added
