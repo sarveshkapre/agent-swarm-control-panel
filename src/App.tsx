@@ -13,14 +13,16 @@ import {
 import type {
   AgentStatus,
   Approval,
+  LogLevelFilter,
   LogBudget,
   PolicySettings,
   Run,
-  RunHealthSummary,
   RunActivity,
+  RunHealthSummary,
   RunPhase,
   RunStatus,
   RunTemplate,
+  StoredState,
   SpikeAlerts
 } from "./types";
 import ApprovalDrawer from "./components/ApprovalDrawer";
@@ -41,8 +43,12 @@ import RunHealthCard from "./components/RunHealthCard";
 import RunTemplatesCard from "./components/RunTemplatesCard";
 import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
-
-type LogLevelFilter = "all" | "info" | "warn" | "error";
+import { buildEvidenceExportPayload } from "./utils/evidence";
+import {
+  formatRunDurationLabel,
+  getRunDurationMinutes,
+  getRunSlaBadge
+} from "./utils/runInsights";
 
 const statusLabel: Record<AgentStatus, string> = {
   idle: "Idle",
@@ -94,21 +100,6 @@ const approvalDetails: Record<
 };
 
 const storageKey = "swarm-control-panel-state";
-
-type StoredState = {
-  theme: "dark" | "light";
-  runSearch: string;
-  logSearch: string;
-  logLevel: LogLevelFilter;
-  logAgent: string;
-  pinnedLogs: string[];
-  queuedRuns: Run[];
-  runOverrides: Record<string, RunStatus>;
-  policy: PolicySettings;
-  spikeAlerts: SpikeAlerts;
-  logBudget: LogBudget;
-  selectedTemplateId: string;
-};
 
 type ConfirmationToast = {
   id: string;
@@ -175,12 +166,6 @@ const defaultQuickRunObjective = "Ad hoc control-plane sync";
 const defaultQuickRunAgents = ["Atlas", "Nova"];
 const defaultQuickRunCostEstimate = "$5.00";
 
-const runDurationMinutes: Record<string, number> = {
-  "r-114": 52,
-  "r-113": 38,
-  "r-112": 95
-};
-
 function parseCostEstimate(value: string) {
   const matches = value.replace(/,/g, "").match(/\d+(\.\d+)?/g);
   if (!matches || matches.length === 0) return null;
@@ -190,23 +175,235 @@ function parseCostEstimate(value: string) {
   return total / numbers.length;
 }
 
-function getRunSlaBadge(run: Run) {
-  const minutes = runDurationMinutes[run.id] ?? 0;
-  if (run.status === "completed") return { label: "Met", tone: "low" as const };
-  if (run.status === "failed") return { label: "Breached", tone: "high" as const };
-  if (run.status === "queued") return { label: "Pending", tone: "muted" as const };
-  if (run.status === "waiting") {
-    return minutes > 30
-      ? { label: "At risk", tone: "medium" as const }
-      : { label: "Waiting", tone: "muted" as const };
-  }
-  if (run.status === "running") {
-    return minutes > 60
-      ? { label: "At risk", tone: "medium" as const }
-      : { label: "On track", tone: "low" as const };
-  }
-  return { label: "—", tone: "muted" as const };
+const runStatuses: RunStatus[] = ["queued", "running", "waiting", "failed", "completed"];
+const logLevels: LogLevelFilter[] = ["all", "info", "warn", "error"];
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isRunStatus(value: unknown): value is RunStatus {
+  return typeof value === "string" && runStatuses.includes(value as RunStatus);
+}
+
+function isLogLevelFilter(value: unknown): value is LogLevelFilter {
+  return typeof value === "string" && logLevels.includes(value as LogLevelFilter);
+}
+
+function isIsoTimestamp(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function sanitizeRun(value: unknown): Run | null {
+  if (!isObjectRecord(value)) return null;
+  const run: Run = {
+    id: typeof value.id === "string" ? value.id : "",
+    objective: typeof value.objective === "string" ? value.objective : "",
+    owner: typeof value.owner === "string" ? value.owner : "",
+    startedAt: typeof value.startedAt === "string" ? value.startedAt : "",
+    status: isRunStatus(value.status) ? value.status : "queued",
+    agents: isStringArray(value.agents) ? value.agents : [],
+    costEstimate: typeof value.costEstimate === "string" ? value.costEstimate : "$0.00",
+    tokens: typeof value.tokens === "string" ? value.tokens : "—"
+  };
+  if (!run.id || !run.objective || !run.owner || !run.startedAt) return null;
+  if (isIsoTimestamp(value.createdAtIso)) run.createdAtIso = value.createdAtIso;
+  return run;
+}
+
+function sanitizeRunList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((run) => sanitizeRun(run))
+    .filter((run): run is Run => run !== null);
+}
+
+function sanitizeRunOverrides(value: unknown) {
+  if (!isObjectRecord(value)) return {};
+  return Object.entries(value).reduce<Record<string, RunStatus>>((acc, [id, status]) => {
+    if (isRunStatus(status)) {
+      acc[id] = status;
+    }
+    return acc;
+  }, {});
+}
+
+function sanitizePolicy(value: unknown) {
+  if (!isObjectRecord(value)) return defaultPolicy;
+  return {
+    mode: typeof value.mode === "string" ? value.mode : defaultPolicy.mode,
+    sandbox: typeof value.sandbox === "string" ? value.sandbox : defaultPolicy.sandbox,
+    timeouts: typeof value.timeouts === "string" ? value.timeouts : defaultPolicy.timeouts,
+    requireCitations:
+      typeof value.requireCitations === "boolean"
+        ? value.requireCitations
+        : defaultPolicy.requireCitations,
+    allowExternal:
+      typeof value.allowExternal === "boolean"
+        ? value.allowExternal
+        : defaultPolicy.allowExternal,
+    allowRepoWrites:
+      typeof value.allowRepoWrites === "boolean"
+        ? value.allowRepoWrites
+        : defaultPolicy.allowRepoWrites,
+    allowDeploy:
+      typeof value.allowDeploy === "boolean" ? value.allowDeploy : defaultPolicy.allowDeploy,
+    piiRedaction:
+      typeof value.piiRedaction === "boolean"
+        ? value.piiRedaction
+        : defaultPolicy.piiRedaction,
+    evidenceBundle:
+      typeof value.evidenceBundle === "boolean"
+        ? value.evidenceBundle
+        : defaultPolicy.evidenceBundle
+  };
+}
+
+function sanitizeLogBudget(value: unknown): LogBudget {
+  if (!isObjectRecord(value)) return defaultLogBudget;
+  const warnBudget =
+    typeof value.warnBudget === "number" && value.warnBudget >= 0
+      ? value.warnBudget
+      : defaultLogBudget.warnBudget;
+  const errorBudget =
+    typeof value.errorBudget === "number" && value.errorBudget >= 0
+      ? value.errorBudget
+      : defaultLogBudget.errorBudget;
+  return { warnBudget, errorBudget };
+}
+
+function sanitizeSpikeAlerts(value: unknown): SpikeAlerts {
+  if (!isObjectRecord(value)) return defaultSpikeAlerts;
+  const windowMinutes =
+    typeof value.windowMinutes === "number" && value.windowMinutes > 0
+      ? value.windowMinutes
+      : defaultSpikeAlerts.windowMinutes;
+  const threshold =
+    typeof value.threshold === "number" && value.threshold > 0
+      ? value.threshold
+      : defaultSpikeAlerts.threshold;
+  const enabled =
+    typeof value.enabled === "boolean" ? value.enabled : defaultSpikeAlerts.enabled;
+  return { enabled, windowMinutes, threshold };
+}
+
+function sanitizeStoredState(value: unknown): Partial<StoredState> | null {
+  if (!isObjectRecord(value)) return null;
+  return {
+    theme: value.theme === "light" || value.theme === "dark" ? value.theme : undefined,
+    runSearch: typeof value.runSearch === "string" ? value.runSearch : undefined,
+    logSearch: typeof value.logSearch === "string" ? value.logSearch : undefined,
+    logLevel: isLogLevelFilter(value.logLevel) ? value.logLevel : undefined,
+    logAgent: typeof value.logAgent === "string" ? value.logAgent : undefined,
+    pinnedLogs: isStringArray(value.pinnedLogs) ? value.pinnedLogs : undefined,
+    queuedRuns: sanitizeRunList(value.queuedRuns),
+    runOverrides: sanitizeRunOverrides(value.runOverrides),
+    policy: sanitizePolicy(value.policy),
+    spikeAlerts: sanitizeSpikeAlerts(value.spikeAlerts),
+    logBudget: sanitizeLogBudget(value.logBudget),
+    selectedTemplateId:
+      typeof value.selectedTemplateId === "string" ? value.selectedTemplateId : undefined
+  };
+}
+
+const referenceNowMs = Date.now();
+
+function minutesAgoIso(minutes: number) {
+  return new Date(referenceNowMs - minutes * 60_000).toISOString();
+}
+
+const defaultRunPhaseTimeline: Record<string, RunPhase[]> = {
+  "r-114": [
+    { label: "Queued", status: "done", time: "09:12", note: "Run accepted" },
+    { label: "Planning", status: "done", time: "09:15", note: "Playbook assigned" },
+    { label: "Execution", status: "current", time: "09:24", note: "3 tasks running" },
+    { label: "Review", status: "upcoming", note: "Awaiting QA pass" },
+    { label: "Complete", status: "upcoming" }
+  ],
+  "r-113": [
+    { label: "Queued", status: "done", time: "08:02", note: "Run accepted" },
+    { label: "Planning", status: "current", time: "08:11", note: "Waiting on approval" },
+    { label: "Execution", status: "upcoming" },
+    { label: "Review", status: "upcoming" },
+    { label: "Complete", status: "upcoming" }
+  ],
+  "r-112": [
+    { label: "Queued", status: "done", time: "Yesterday 13:40" },
+    { label: "Planning", status: "done", time: "Yesterday 13:55" },
+    { label: "Execution", status: "done", time: "Yesterday 14:20" },
+    { label: "Review", status: "done", time: "Yesterday 15:02" },
+    { label: "Complete", status: "done", time: "Yesterday 15:22", note: "Evidence pack exported" }
+  ]
+};
+
+const defaultRunActivityFeed: Record<string, RunActivity[]> = {
+  "r-114": [
+    {
+      id: "act-114-1",
+      title: "Kickoff briefing delivered",
+      detail: "Atlas posted briefing in #swarm-launch.",
+      timestamp: "09:14",
+      occurredAtIso: minutesAgoIso(18),
+      type: "milestone"
+    },
+    {
+      id: "act-114-2",
+      title: "Approval requested",
+      detail: "Nova requested write access to staging repo.",
+      timestamp: "09:18",
+      occurredAtIso: minutesAgoIso(14),
+      type: "approval"
+    },
+    {
+      id: "act-114-3",
+      title: "Automation step running",
+      detail: "Kite executing onboarding checklist.",
+      timestamp: "09:24",
+      occurredAtIso: minutesAgoIso(8),
+      type: "agent"
+    }
+  ],
+  "r-113": [
+    {
+      id: "act-113-1",
+      title: "Research queue created",
+      detail: "Horizon assembled competitor list (12 targets).",
+      timestamp: "08:04",
+      occurredAtIso: minutesAgoIso(35),
+      type: "milestone"
+    },
+    {
+      id: "act-113-2",
+      title: "Approval pending",
+      detail: "Waiting on open web crawl approval.",
+      timestamp: "08:11",
+      occurredAtIso: minutesAgoIso(32),
+      type: "approval"
+    }
+  ],
+  "r-112": [
+    {
+      id: "act-112-1",
+      title: "Regression suite complete",
+      detail: "Kite finished 18/18 critical paths.",
+      timestamp: "Yesterday 14:48",
+      occurredAtIso: minutesAgoIso(70),
+      type: "milestone"
+    },
+    {
+      id: "act-112-2",
+      title: "Evidence pack generated",
+      detail: "Exported bundle to compliance share.",
+      timestamp: "Yesterday 15:22",
+      occurredAtIso: minutesAgoIso(60),
+      type: "system"
+    }
+  ]
+};
 
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -233,9 +430,7 @@ function safeJsonParse<T>(raw: string): T | null {
 function readStoredState(): Partial<StoredState> | null {
   const raw = getStorage()?.getItem(storageKey);
   if (!raw) return null;
-  const parsed = safeJsonParse<Partial<StoredState>>(raw);
-  if (!parsed || typeof parsed !== "object") return null;
-  return parsed;
+  return sanitizeStoredState(safeJsonParse(raw));
 }
 
 function isTypingTarget(target: EventTarget | null) {
@@ -339,6 +534,7 @@ export default function App() {
   const modalPanelRef = useRef<HTMLDivElement>(null);
   const runDetailPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  const [clockMs, setClockMs] = useState(() => Date.now());
 
   const queueRun = useCallback(
     (options?: {
@@ -359,6 +555,7 @@ export default function App() {
           defaultQuickRunObjective,
         owner: options?.owner ?? "Ops",
         startedAt: "Just now",
+        createdAtIso: new Date().toISOString(),
         status: "queued",
         agents: template?.agents ?? defaultQuickRunAgents,
         costEstimate: template?.estCost ?? defaultQuickRunCostEstimate,
@@ -483,6 +680,11 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    const handle = window.setInterval(() => setClockMs(Date.now()), 60_000);
+    return () => window.clearInterval(handle);
+  }, []);
+
+  useEffect(() => {
     const storage = getStorage();
     if (!storage || typeof storage.setItem !== "function") return;
     const state: StoredState = {
@@ -584,17 +786,36 @@ export default function App() {
     });
   }, [logSearch, logLevel, logAgent]);
 
+  const getRunActivityFeed = useCallback(
+    (run: Run) => defaultRunActivityFeed[run.id] ?? [],
+    []
+  );
+
+  const runDurationsById = useMemo(
+    () =>
+      runData.reduce<Record<string, number | null>>((acc, run) => {
+        acc[run.id] = getRunDurationMinutes(run, getRunActivityFeed(run), clockMs);
+        return acc;
+      }, {}),
+    [clockMs, getRunActivityFeed, runData]
+  );
+
+  const getRunSlaBadgeForRun = useCallback(
+    (run: Run) => getRunSlaBadge(run, runDurationsById[run.id] ?? null),
+    [runDurationsById]
+  );
+
   const atRiskRuns = useMemo(
     () =>
       runData.filter((run) => {
-        const tone = getRunSlaBadge(run).tone;
+        const tone = getRunSlaBadgeForRun(run).tone;
         return tone === "medium" || tone === "high";
       }),
-    [runData]
+    [getRunSlaBadgeForRun, runData]
   );
 
   const runHealthSummary = useMemo<RunHealthSummary>(() => {
-    const breachedRuns = runData.filter((run) => getRunSlaBadge(run).tone === "high").length;
+    const breachedRuns = runData.filter((run) => getRunSlaBadgeForRun(run).tone === "high").length;
     const spendAtRisk = atRiskRuns.reduce((total, run) => {
       return total + (parseCostEstimate(run.costEstimate) ?? 0);
     }, 0);
@@ -607,7 +828,7 @@ export default function App() {
       errorLogs: logs.filter((log) => log.level === "error").length,
       spendAtRisk
     };
-  }, [atRiskRuns, runData]);
+  }, [atRiskRuns, getRunSlaBadgeForRun, runData]);
 
   const togglePin = (id: string) => {
     setPinnedLogs((prev) =>
@@ -615,8 +836,8 @@ export default function App() {
     );
   };
 
-  const exportEvidence = () => {
-    const payload = {
+  const exportEvidence = async () => {
+    const payload = await buildEvidenceExportPayload({
       generatedAt: new Date().toISOString(),
       policy,
       runHealthSummary,
@@ -628,8 +849,13 @@ export default function App() {
       logs,
       logBudget,
       spikeAlerts
-    };
+    });
     downloadJson("agent-swarm-evidence-pack.json", payload);
+    setBanner(
+      payload.integrity.digest
+        ? `Evidence exported (${payload.integrity.digest.slice(0, 18)}...).`
+        : "Evidence exported (checksum unavailable in this browser)."
+    );
   };
 
   const exportState = () => {
@@ -654,31 +880,21 @@ export default function App() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const parsed = safeJsonParse<Partial<StoredState>>(String(reader.result));
+      const parsed = sanitizeStoredState(safeJsonParse(String(reader.result)));
       if (!parsed) {
         setBanner("Import failed. Invalid JSON file.");
         return;
       }
 
-      const nextTheme =
-        parsed.theme === "light" || parsed.theme === "dark" ? parsed.theme : "dark";
-      const nextLogLevel =
-        parsed.logLevel === "info" ||
-        parsed.logLevel === "warn" ||
-        parsed.logLevel === "error" ||
-        parsed.logLevel === "all"
-          ? parsed.logLevel
-          : "all";
-
-      setTheme(nextTheme);
+      setTheme(parsed.theme ?? "dark");
       setRunSearch(parsed.runSearch ?? "");
       setLogSearch(parsed.logSearch ?? "");
-      setLogLevel(nextLogLevel);
+      setLogLevel(parsed.logLevel ?? "all");
       setLogAgent(parsed.logAgent ?? "all");
       setPinnedLogs(parsed.pinnedLogs ?? []);
       setQueuedRuns(parsed.queuedRuns ?? []);
       setRunOverrides(parsed.runOverrides ?? {});
-      setPolicy({ ...defaultPolicy, ...(parsed.policy ?? {}) });
+      setPolicy(parsed.policy ?? defaultPolicy);
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
       setLogBudget(parsed.logBudget ?? defaultLogBudget);
       setSelectedTemplateId(parsed.selectedTemplateId ?? (defaultTemplates[0]?.id ?? ""));
@@ -705,88 +921,6 @@ export default function App() {
     decision: riskRank(approval.risk) <= autoApproveRank ? "Auto-approve" : "Manual review"
   }));
 
-  const runPhaseTimeline: Record<string, RunPhase[]> = {
-    "r-114": [
-      { label: "Queued", status: "done", time: "09:12", note: "Run accepted" },
-      { label: "Planning", status: "done", time: "09:15", note: "Playbook assigned" },
-      { label: "Execution", status: "current", time: "09:24", note: "3 tasks running" },
-      { label: "Review", status: "upcoming", note: "Awaiting QA pass" },
-      { label: "Complete", status: "upcoming" }
-    ],
-    "r-113": [
-      { label: "Queued", status: "done", time: "08:02", note: "Run accepted" },
-      { label: "Planning", status: "current", time: "08:11", note: "Waiting on approval" },
-      { label: "Execution", status: "upcoming" },
-      { label: "Review", status: "upcoming" },
-      { label: "Complete", status: "upcoming" }
-    ],
-    "r-112": [
-      { label: "Queued", status: "done", time: "Yesterday 13:40" },
-      { label: "Planning", status: "done", time: "Yesterday 13:55" },
-      { label: "Execution", status: "done", time: "Yesterday 14:20" },
-      { label: "Review", status: "done", time: "Yesterday 15:02" },
-      { label: "Complete", status: "done", time: "Yesterday 15:22", note: "Evidence pack exported" }
-    ]
-  };
-
-  const runActivityFeed: Record<string, RunActivity[]> = {
-    "r-114": [
-      {
-        id: "act-114-1",
-        title: "Kickoff briefing delivered",
-        detail: "Atlas posted briefing in #swarm-launch.",
-        timestamp: "09:14",
-        type: "milestone"
-      },
-      {
-        id: "act-114-2",
-        title: "Approval requested",
-        detail: "Nova requested write access to staging repo.",
-        timestamp: "09:18",
-        type: "approval"
-      },
-      {
-        id: "act-114-3",
-        title: "Automation step running",
-        detail: "Kite executing onboarding checklist.",
-        timestamp: "09:24",
-        type: "agent"
-      }
-    ],
-    "r-113": [
-      {
-        id: "act-113-1",
-        title: "Research queue created",
-        detail: "Horizon assembled competitor list (12 targets).",
-        timestamp: "08:04",
-        type: "milestone"
-      },
-      {
-        id: "act-113-2",
-        title: "Approval pending",
-        detail: "Waiting on open web crawl approval.",
-        timestamp: "08:11",
-        type: "approval"
-      }
-    ],
-    "r-112": [
-      {
-        id: "act-112-1",
-        title: "Regression suite complete",
-        detail: "Kite finished 18/18 critical paths.",
-        timestamp: "Yesterday 14:48",
-        type: "milestone"
-      },
-      {
-        id: "act-112-2",
-        title: "Evidence pack generated",
-        detail: "Exported bundle to compliance share.",
-        timestamp: "Yesterday 15:22",
-        type: "system"
-      }
-    ]
-  };
-
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
   const composerTemplate =
     composerTemplateId === "none"
@@ -799,19 +933,8 @@ export default function App() {
     ? approvals.filter((approval) => selectedRun.agents.includes(approval.requestedBy))
     : [];
 
-  const getRunDurationLabel = (run: Run) => {
-    const minutes = runDurationMinutes[run.id];
-    if (typeof minutes === "number") {
-      if (minutes < 60) return `${minutes}m`;
-      const hours = Math.floor(minutes / 60);
-      const remainder = minutes % 60;
-      return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
-    }
-    if (run.status === "queued") return "Queued now";
-    if (run.status === "waiting") return "Queued";
-    if (run.status === "running") return "In progress";
-    return "—";
-  };
+  const getRunDurationLabel = (run: Run) =>
+    formatRunDurationLabel(run, runDurationsById[run.id] ?? null);
 
   const buildDefaultTimeline = (run: Run): RunPhase[] => {
     const phaseLabels = ["Queued", "Planning", "Execution", "Review", "Complete"];
@@ -840,8 +963,7 @@ export default function App() {
     });
   };
 
-  const getRunTimeline = (run: Run) => runPhaseTimeline[run.id] ?? buildDefaultTimeline(run);
-  const getRunActivityFeed = (run: Run) => runActivityFeed[run.id] ?? [];
+  const getRunTimeline = (run: Run) => defaultRunPhaseTimeline[run.id] ?? buildDefaultTimeline(run);
 
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -995,7 +1117,7 @@ export default function App() {
         onRunAction={handleRunAction}
         onViewDetails={setSelectedRun}
         getRunDurationLabel={getRunDurationLabel}
-        getRunSlaBadge={getRunSlaBadge}
+        getRunSlaBadge={getRunSlaBadgeForRun}
       />
 
       <section className="grid">
@@ -1014,7 +1136,9 @@ export default function App() {
           onTogglePin={togglePin}
           streaming={streaming}
           onToggleStreaming={() => setStreaming((prev) => !prev)}
-          onExportEvidence={exportEvidence}
+          onExportEvidence={() => {
+            void exportEvidence();
+          }}
         />
         <ControlSurfaceCard
           policy={policy}

@@ -28,6 +28,7 @@ export type RunActivity = {
   title: string;
   detail: string;
   timestamp: string;
+  occurredAtIso?: string;
   type: RunActivityType;
 };
 
@@ -36,6 +37,7 @@ export type Run = {
   objective: string;
   owner: string;
   startedAt: string;
+  createdAtIso?: string;
   status: RunStatus;
   agents: string[];
   costEstimate: string;
@@ -139,4 +141,21 @@ export type RunHealthSummary = {
   pendingApprovals: number;
   errorLogs: number;
   spendAtRisk: number;
+};
+
+export type LogLevelFilter = "all" | "info" | "warn" | "error";
+
+export type StoredState = {
+  theme: "dark" | "light";
+  runSearch: string;
+  logSearch: string;
+  logLevel: LogLevelFilter;
+  logAgent: string;
+  pinnedLogs: string[];
+  queuedRuns: Run[];
+  runOverrides: Record<string, RunStatus>;
+  policy: PolicySettings;
+  spikeAlerts: SpikeAlerts;
+  logBudget: LogBudget;
+  selectedTemplateId: string;
 };

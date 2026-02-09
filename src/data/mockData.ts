@@ -9,6 +9,12 @@ import type {
   ValueMetric
 } from "../types";
 
+const nowMs = Date.now();
+
+function minutesAgoIso(minutes: number) {
+  return new Date(nowMs - minutes * 60_000).toISOString();
+}
+
 export const agents: Agent[] = [
   {
     id: "a-1",
@@ -54,6 +60,7 @@ export const runs: Run[] = [
     objective: "Launch onboarding flow for Agent Swarm",
     owner: "Ops",
     startedAt: "Today 09:12",
+    createdAtIso: minutesAgoIso(20),
     status: "running",
     agents: ["Atlas", "Nova", "Kite"],
     costEstimate: "$18.40",
@@ -64,6 +71,7 @@ export const runs: Run[] = [
     objective: "Compile competitive report",
     owner: "Research",
     startedAt: "Today 08:02",
+    createdAtIso: minutesAgoIso(38),
     status: "waiting",
     agents: ["Atlas", "Horizon"],
     costEstimate: "$7.12",
@@ -74,6 +82,7 @@ export const runs: Run[] = [
     objective: "Regression suite + evidence pack",
     owner: "QA",
     startedAt: "Yesterday",
+    createdAtIso: minutesAgoIso(95),
     status: "completed",
     agents: ["Kite"],
     costEstimate: "$3.55",

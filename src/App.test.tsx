@@ -256,7 +256,127 @@ it("confirms run actions via toast and updates status", async () => {
     .getByText(/r-114/i)
     .closest(".run") as HTMLElement | null;
   expect(targetRun).not.toBeNull();
-  expect(within(targetRun!).getByText(/Waiting/i)).toBeInTheDocument();
+  const runStatus = targetRun!.querySelector("p.status");
+  expect(runStatus).not.toBeNull();
+  expect(runStatus).toHaveTextContent("Waiting");
+});
+
+it("exports evidence with integrity metadata", async () => {
+  if (!("createObjectURL" in URL)) {
+    Object.defineProperty(URL, "createObjectURL", {
+      value: () => "blob:unsupported",
+      writable: true
+    });
+  }
+  if (!("revokeObjectURL" in URL)) {
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: () => undefined,
+      writable: true
+    });
+  }
+
+  const createObjectURLSpy = vi
+    .spyOn(URL, "createObjectURL")
+    .mockImplementation(() => "blob:mock-url");
+  const revokeObjectURLSpy = vi
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const anchorClickSpy = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+
+  render(<App />);
+  const user = userEvent.setup();
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^Export$/i }));
+  });
+
+  await waitFor(() => {
+    expect(createObjectURLSpy).toHaveBeenCalled();
+  });
+
+  const latestCall =
+    createObjectURLSpy.mock.calls[createObjectURLSpy.mock.calls.length - 1];
+  expect(latestCall).toBeTruthy();
+  const [blob] = latestCall as [Blob];
+  const blobText = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+  const payload = JSON.parse(blobText) as {
+    evidenceSchemaVersion: number;
+    integrity: {
+      algorithm: string;
+      digest: string | null;
+      computedAt: string;
+    };
+  };
+
+  expect(payload.evidenceSchemaVersion).toBe(2);
+  expect(payload.integrity.computedAt).toEqual(expect.any(String));
+  expect(["SHA-256", "none"]).toContain(payload.integrity.algorithm);
+  if (payload.integrity.algorithm === "SHA-256") {
+    expect(payload.integrity.digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+  } else {
+    expect(payload.integrity.digest).toBeNull();
+  }
+
+  createObjectURLSpy.mockRestore();
+  revokeObjectURLSpy.mockRestore();
+  anchorClickSpy.mockRestore();
+});
+
+it("sanitizes malformed imported state instead of applying unsafe values", async () => {
+  render(<App />);
+
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+  expect(runList!.querySelectorAll(".run")).toHaveLength(3);
+
+  const fileInput = document.querySelector<HTMLInputElement>("input[type='file']");
+  expect(fileInput).not.toBeNull();
+
+  const invalidState = {
+    theme: "light",
+    runSearch: "",
+    queuedRuns: [
+      {
+        id: 123,
+        objective: null,
+        owner: "Ops",
+        startedAt: "Now",
+        status: "blocked"
+      }
+    ],
+    runOverrides: {
+      "r-114": "blocked"
+    },
+    logBudget: {
+      warnBudget: -1,
+      errorBudget: 3
+    }
+  };
+  const file = new File([JSON.stringify(invalidState)], "state.json", {
+    type: "application/json"
+  });
+
+  await act(async () => {
+    fireEvent.change(fileInput!, { target: { files: [file] } });
+  });
+
+  await waitFor(() => {
+  expect(screen.getByText(/Imported workspace state/i)).toBeInTheDocument();
+  });
+
+  expect(document.documentElement.dataset.theme).toBe("light");
+  expect(screen.getByLabelText("Search runs")).toHaveValue("");
+  expect(runList!.querySelectorAll(".run")).toHaveLength(3);
+
+  const targetRun = within(runList!).getByText(/r-114/i).closest(".run") as HTMLElement | null;
+  expect(targetRun).not.toBeNull();
+  expect(within(targetRun!).getByText(/Running/i)).toBeInTheDocument();
 });
 
 it("opens run details with recent logs and approvals", async () => {
