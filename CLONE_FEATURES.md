@@ -7,11 +7,6 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-Selected (cycle-5 session)
-- [ ] `P1` Deep-linkable run + approval drawers (URL state, copy link, back/forward sync).
-- [ ] `P1` Evidence export viewer (schema/meta preview + copy snippets + download).
-
-Next candidates
 - [ ] `P2` Template import/export as JSON for sharing playbooks (separate from full workspace state).
 - [ ] `P2` Run annotations + tags (operator notes) with tag-based filtering.
 - [ ] `P2` Trace waterfall mock view in run details (spans + timing) to set observability baseline.
@@ -20,6 +15,12 @@ Next candidates
 - [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
 
 ## Implemented
+- [x] `P1` Deep-linkable run + approval drawers (URL state, copy link, back/forward sync).  
+  Date: 2026-02-09  
+  Evidence: `src/App.tsx`, `src/components/ApprovalDrawer.tsx`, `src/components/RunDetailDrawer.tsx`, `src/App.test.tsx`
+- [x] `P1` Evidence export viewer (schema/meta preview + copy/download).  
+  Date: 2026-02-09  
+  Evidence: `src/components/EvidenceExportViewerModal.tsx`, `src/components/LogsCard.tsx`, `src/App.tsx`, `src/App.test.tsx`, `src/styles.css`
 - [x] `P0` Add an operator "Emergency stop" to pause new run queueing (policy setting + disable queue CTAs + visible banner).  
   Date: 2026-02-09  
   Evidence: `src/App.tsx`, `src/components/PolicyModal.tsx`, `src/components/TopBar.tsx`, `src/components/AgentsRunsSection.tsx`, `src/components/RunComposerCard.tsx`, `src/components/RunTemplatesCard.tsx`, `src/styles.css`, `src/App.test.tsx`
@@ -88,6 +89,9 @@ Next candidates
 - Bounded market scan indicates baseline expectations include trace observability, replay/debug context, and operational monitoring; checksum-backed exports align with trust/compliance expectations.
 - Gap map after cycle-3 (`2026-02-09`): escalation workflows, integration sync observability, and deep-link handoffs were the weakest operator loops.
 - After shipping cycle-4 escalation and sync-health work, the next highest-leverage gaps are deep-link handoffs (run/approval URL state) and an evidence viewer to reduce JSON-only workflows.
+- Market baseline signals (untrusted, web): visual trace exploration and replay/time-travel debugging are common UX expectations in agent orchestration tooling; representative references:
+  - LangGraph Studio: https://langchain-ai.github.io/langgraph/concepts/langgraph_studio/
+  - OpenAI Agents SDK tracing: https://openai.github.io/openai-agents-python/tracing/
 
 ## Notes
 - This file is maintained by the autonomous clone loop.

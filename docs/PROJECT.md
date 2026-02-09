@@ -11,6 +11,6 @@
 - Release: `make release`
 
 ## Next 3 improvements
-1. Add integration sync health telemetry (last sync, errors, reconnect action).
-2. Add escalation actions from run health (ping owner, pause policy, incident draft).
-3. Add shareable deep-links to run/approval drawers for handoff.
+1. Agent workload heatmap and SLA alerts.
+2. Trace waterfall mock view in run details (spans + timing).
+3. Template import/export as JSON for sharing playbooks (separate from workspace state).

@@ -5,8 +5,10 @@ One UI to run multiple agents (researcher/coder/tester/writer/scheduler) with ap
 ## What it does
 - Monitor active agents, runs, and live logs in one dashboard
 - Track approval requests before any agent touches external tools or repos
+- Share deep-links to specific run/approval drawers for incident handoff
 - Control policies, spend, and evidence bundles from a single surface
 - Verify exported evidence packs against the embedded checksum for integrity
+- Preview evidence exports (schema/meta + checksum) and copy snippets before downloading
 - Queue new runs instantly from top bar, runs panel, or template actions
 - Surface run health summary (SLA risk, pending approvals, error pressure, spend at risk)
 - Surface outcome metrics, activation loops, and feedback signals to drive adoption

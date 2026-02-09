@@ -15,6 +15,8 @@
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
 - Regression tests for drawer/modal focus management.
+- Shareable deep-links for run + approval drawers (URL state + copy link).
+- Evidence export viewer modal (schema/meta preview + copy/download).
 - Evidence pack verification modal (paste/upload + checksum validation).
 - Template editor modal (create/edit/duplicate/delete) with local persistence.
 - Run status filter chips for fast triage (persisted locally).

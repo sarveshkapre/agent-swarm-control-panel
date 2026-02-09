@@ -1,5 +1,36 @@
 # Project Memory
 
+## Entry: 2026-02-09 (Global Cycle 5)
+- Decision: Ship handoff-grade deep-links (run/approval drawers) and a first-class evidence export viewer before expanding observability surfaces.
+- Why: Operators need to hand off a specific run/approval context quickly (incident response, reviews), and evidence workflows should not require downloading/parsing raw JSON to confirm schema/metadata and copy checksums.
+- Bounded market scan (untrusted external synthesis, references):
+  - LangGraph Studio (visual execution + replay/time travel): https://langchain-ai.github.io/langgraph/concepts/langgraph_studio/
+  - OpenAI Agents SDK tracing (trace capture + viewer concepts): https://openai.github.io/openai-agents-python/tracing/
+- Gap map:
+  Missing: shareable deep-links to open run/approval drawers; evidence export viewer beyond "download JSON".
+  Weak: handoff UX required manual re-navigation and lacked a stable URL; evidence inspection required offline tooling.
+  Parity: evidence exports + checksum verification, run details, run health escalation actions, integrations sync telemetry.
+  Differentiator opportunity: local-first control plane with compliance-grade evidence handoff and context-preserving deep links.
+- Candidate scoring (selected items first):
+  1) Deep-linkable run/approval drawers (Impact 9, Effort 3, Fit 9, Diff 5, Risk 3, Confidence 8).
+  2) Evidence export viewer (Impact 8, Effort 3, Fit 9, Diff 4, Risk 2, Confidence 8).
+- Shipped:
+  1) Deep-linkable run/approval drawers via `runId` / `approvalId` URL params, including copy-link actions and back/forward sync.
+  2) Evidence export viewer modal with schema/metadata preview, copy checksum/JSON, and download.
+- Verification evidence (local):
+  - `make check` (pass).
+  - Smoke (pass): `(npm run dev -- --host 127.0.0.1 --port 5174 > /tmp/agent-swarm-vite.log 2>&1 & echo $! > /tmp/agent-swarm-vite.pid); sleep 2; curl -fsS -D - http://127.0.0.1:5174/ -o /tmp/agent-swarm-index.html; kill $(cat /tmp/agent-swarm-vite.pid)`
+- Verification evidence (CI):
+  - `gh run watch 21843025630 --exit-status` (pass).
+  - `gh run watch 21843028147 --exit-status` (pass).
+- Mistakes and fixes:
+  - Root cause: evidence viewer modal used a `<label>` without an associated control, tripping `jsx-a11y/label-has-associated-control`.
+  - Fix: replaced the label with non-form text (`<p className="muted">Preview</p>`).
+  - Prevention rule: only use `<label>` when there is an associated `id`-backed form control; prefer text elements for static section headings.
+- Commits: `775b1b9`, `8c20266`.
+- Confidence: high.
+- Trust label: `verified-local` for code/tests/smoke/commands, `external-docs` for market scan synthesis.
+
 ## Entry: 2026-02-09 (Global Cycle 4)
 - Decision: Prioritize operator control-loop actions (emergency stop + escalation drafts) and integration sync trust signals before adding new dashboards.
 - Why: The panel already surfaces at-risk runs, but lacked the immediate actions operators expect (pause, notify, draft incident). Integrations also showed “connected” without any sync-health, reducing trust in operational readiness.
