@@ -24,6 +24,9 @@
 - Verification evidence (local):
   - `npm run check` (pass).
   - Smoke (pass): `set -euo pipefail; (npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/agent-swarm-dev.log 2>&1 & echo $! > /tmp/agent-swarm-dev.pid); sleep 2; curl -sSf http://127.0.0.1:4173/ > /tmp/agent-swarm-dev.curl.html; kill $(cat /tmp/agent-swarm-dev.pid)`
+- Verification evidence (CI):
+  - `gh run watch 21834621795 --exit-status` (pass).
+  - `gh run watch 21834621766 --exit-status` (pass).
 - Mistakes and fixes:
   - Root cause: clipboard behavior differs across jsdom/browser environments; an overly strict test asserted clipboard internals rather than user-visible outcomes.
   - Fix: assert banner-driven outcomes and rely on a safe `document.execCommand` fallback in tests.
