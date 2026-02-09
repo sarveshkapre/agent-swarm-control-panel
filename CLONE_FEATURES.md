@@ -7,13 +7,17 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P2` Add shareable deep-link to selected run/approval drawers (URL state + copy link).
-- [ ] `P2` Add evidence export viewer (schema/meta preview + copy-to-clipboard snippets).
-- [ ] `P2` Add template import/export as JSON for sharing playbooks (separate from full workspace state).
-- [ ] `P2` Add lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
-- [ ] `P3` Add run annotations + tags (operator notes) with tag-based filtering.
-- [ ] `P3` Add trace waterfall mock view in run details (spans + timing) to set observability baseline.
-- [ ] `P3` Accessibility pass for new escalation/integration flows (keyboard-only, focus management, aria labels) + regression tests.
+Selected (cycle-5 session)
+- [ ] `P1` Deep-linkable run + approval drawers (URL state, copy link, back/forward sync).
+- [ ] `P1` Evidence export viewer (schema/meta preview + copy snippets + download).
+
+Next candidates
+- [ ] `P2` Template import/export as JSON for sharing playbooks (separate from full workspace state).
+- [ ] `P2` Run annotations + tags (operator notes) with tag-based filtering.
+- [ ] `P2` Trace waterfall mock view in run details (spans + timing) to set observability baseline.
+- [ ] `P3` Lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
+- [ ] `P3` Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
+- [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
 
 ## Implemented
 - [x] `P0` Add an operator "Emergency stop" to pause new run queueing (policy setting + disable queue CTAs + visible banner).  

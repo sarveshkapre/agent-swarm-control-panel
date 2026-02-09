@@ -11,6 +11,7 @@ type ApprovalDrawerProps = {
   approval: Approval;
   approvalDetail: ApprovalDetail | null;
   onClose: () => void;
+  onCopyLink?: () => void;
   onDeny: () => void;
   onApprove: () => void;
   panelRef: RefObject<HTMLDivElement>;
@@ -20,6 +21,7 @@ export default function ApprovalDrawer({
   approval,
   approvalDetail,
   onClose,
+  onCopyLink,
   onDeny,
   onApprove,
   panelRef
@@ -42,9 +44,16 @@ export default function ApprovalDrawer({
       >
         <div className="drawer-header">
           <h2 id="drawer-title">Approval request</h2>
-          <button className="ghost" onClick={onClose} type="button">
-            Close
-          </button>
+          <div className="drawer-header-actions">
+            {onCopyLink ? (
+              <button className="ghost" onClick={onCopyLink} type="button">
+                Copy link
+              </button>
+            ) : null}
+            <button className="ghost" onClick={onClose} type="button">
+              Close
+            </button>
+          </div>
         </div>
         <div className="drawer-body">
           <div>

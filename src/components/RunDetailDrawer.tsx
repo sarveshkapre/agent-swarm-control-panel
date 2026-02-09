@@ -8,6 +8,7 @@ type RunDetailDrawerProps = {
   timeline: RunPhase[];
   activity: RunActivity[];
   onClose: () => void;
+  onCopyLink?: () => void;
   panelRef: RefObject<HTMLDivElement>;
 };
 
@@ -18,6 +19,7 @@ export default function RunDetailDrawer({
   timeline,
   activity,
   onClose,
+  onCopyLink,
   panelRef
 }: RunDetailDrawerProps) {
   return (
@@ -38,9 +40,16 @@ export default function RunDetailDrawer({
       >
         <div className="drawer-header">
           <h2 id="run-detail-title">Run details</h2>
-          <button className="ghost" onClick={onClose} type="button">
-            Close
-          </button>
+          <div className="drawer-header-actions">
+            {onCopyLink ? (
+              <button className="ghost" onClick={onCopyLink} type="button">
+                Copy link
+              </button>
+            ) : null}
+            <button className="ghost" onClick={onClose} type="button">
+              Close
+            </button>
+          </div>
         </div>
         <div className="drawer-body">
           <div>

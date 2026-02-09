@@ -9,6 +9,7 @@ beforeEach(() => {
   if (typeof window.localStorage.removeItem === "function") {
     window.localStorage.removeItem(storageKey);
   }
+  window.history.pushState({}, "", "/");
 });
 
 it("renders the control panel header", () => {
@@ -96,6 +97,7 @@ it("traps focus inside the approval drawer and restores focus on close", async (
   fireEvent.click(viewAll);
 
   const drawer = await screen.findByRole("dialog", { name: /Approval request/i });
+  const copyLinkButton = within(drawer).getByRole("button", { name: /Copy link/i });
   const closeButton = within(drawer).getByRole("button", { name: /Close/i });
   closeButton.focus();
 
@@ -104,7 +106,7 @@ it("traps focus inside the approval drawer and restores focus on close", async (
     expect(screen.getByRole("button", { name: /Deny/i })).toHaveFocus();
   });
 
-  closeButton.focus();
+  copyLinkButton.focus();
   await user.tab({ shift: true });
   await waitFor(() => {
     expect(screen.getByRole("button", { name: /Approve/i })).toHaveFocus();
@@ -113,6 +115,43 @@ it("traps focus inside the approval drawer and restores focus on close", async (
   const overlayClose = screen.getByRole("button", { name: /Close approval drawer/i });
   fireEvent.click(overlayClose);
   await waitFor(() => expect(viewAll).toHaveFocus());
+});
+
+it("hydrates the run drawer from a shareable URL parameter", async () => {
+  window.history.pushState({}, "", "/?runId=r-113");
+  render(<App />);
+
+  const drawer = await screen.findByRole("dialog", { name: /Run details/i });
+  expect(within(drawer).getByText(/r-113/i)).toBeInTheDocument();
+});
+
+it("hydrates the approval drawer from a shareable URL parameter", async () => {
+  window.history.pushState({}, "", "/?approvalId=ap-70");
+  render(<App />);
+
+  const drawer = await screen.findByRole("dialog", { name: /Approval request/i });
+  expect(within(drawer).getByText(/ap-70/i)).toBeInTheDocument();
+});
+
+it("updates the URL when opening run and approval drawers", async () => {
+  render(<App />);
+  const user = userEvent.setup();
+
+  const runCard = screen.getByText(/Launch onboarding flow/i).closest("article") as HTMLElement | null;
+  expect(runCard).not.toBeNull();
+  await act(async () => {
+    await user.click(within(runCard!).getByRole("button", { name: /Details/i }));
+  });
+  await waitFor(() => {
+    expect(window.location.search).toContain("runId=r-114");
+  });
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /View all/i }));
+  });
+  await waitFor(() => {
+    expect(window.location.search).toContain("approvalId=ap-71");
+  });
 });
 
 it("traps focus inside the policy modal and restores focus on close", async () => {

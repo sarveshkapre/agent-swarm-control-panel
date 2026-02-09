@@ -574,6 +574,34 @@ function parseLineList(raw: string) {
   return Array.from(new Set(parts));
 }
 
+function getDrawerParamsFromLocation() {
+  const url = new URL(window.location.href);
+  return {
+    approvalId: url.searchParams.get("approvalId"),
+    runId: url.searchParams.get("runId")
+  };
+}
+
+function buildShareLocation(params: { approvalId: string | null; runId: string | null }) {
+  const url = new URL(window.location.href);
+
+  if (params.approvalId) {
+    url.searchParams.set("approvalId", params.approvalId);
+    url.searchParams.delete("runId");
+  } else if (params.runId) {
+    url.searchParams.set("runId", params.runId);
+    url.searchParams.delete("approvalId");
+  } else {
+    url.searchParams.delete("approvalId");
+    url.searchParams.delete("runId");
+  }
+
+  return {
+    href: url.toString(),
+    path: `${url.pathname}${url.search}${url.hash}`
+  };
+}
+
 export default function App() {
   const [initialStoredState] = useState<Partial<StoredState> | null>(() =>
     readStoredState()
@@ -667,6 +695,8 @@ export default function App() {
   const templateModalPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
+  const suppressDrawerUrlSyncRef = useRef(false);
+  const hydratedDrawerFromUrlRef = useRef(false);
 
   const queueRun = useCallback(
     (options?: {
@@ -744,6 +774,77 @@ export default function App() {
       return override ? { ...run, status: override } : run;
     });
   }, [queuedRuns, runOverrides]);
+
+  const openApprovalDrawer = useCallback((approval: Approval | null) => {
+    setSelectedRun(null);
+    setSelectedApproval(approval);
+    if (approval) {
+      setPolicyOpen(false);
+      setVerifyEvidenceOpen(false);
+      setTemplateModalOpen(false);
+    }
+  }, []);
+
+  const openRunDrawer = useCallback((run: Run | null) => {
+    setSelectedApproval(null);
+    setSelectedRun(run);
+    if (run) {
+      setPolicyOpen(false);
+      setVerifyEvidenceOpen(false);
+      setTemplateModalOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hydratedDrawerFromUrlRef.current) return;
+    hydratedDrawerFromUrlRef.current = true;
+
+    const { approvalId, runId } = getDrawerParamsFromLocation();
+    const approval = approvalId
+      ? approvals.find((item) => item.id === approvalId) ?? null
+      : null;
+    const run = !approval && runId ? runData.find((item) => item.id === runId) ?? null : null;
+
+    if (approval) openApprovalDrawer(approval);
+    else if (run) openRunDrawer(run);
+  }, [openApprovalDrawer, openRunDrawer, runData]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      suppressDrawerUrlSyncRef.current = true;
+      const { approvalId, runId } = getDrawerParamsFromLocation();
+      const approval = approvalId
+        ? approvals.find((item) => item.id === approvalId) ?? null
+        : null;
+      const run = !approval && runId ? runData.find((item) => item.id === runId) ?? null : null;
+
+      if (approval) openApprovalDrawer(approval);
+      else if (run) openRunDrawer(run);
+      else {
+        setSelectedApproval(null);
+        setSelectedRun(null);
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [openApprovalDrawer, openRunDrawer, runData]);
+
+  useEffect(() => {
+    if (suppressDrawerUrlSyncRef.current) {
+      suppressDrawerUrlSyncRef.current = false;
+      return;
+    }
+
+    const approvalId = selectedApproval?.id ?? null;
+    const runId = selectedRun?.id ?? null;
+    const desired = buildShareLocation({ approvalId, runId });
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (desired.path === currentPath) return;
+
+    // Share links should be stable and navigable with back/forward.
+    window.history.pushState(null, "", desired.path);
+  }, [selectedApproval?.id, selectedRun?.id]);
 
   useEffect(() => {
     if (overlayOpen) {
@@ -1069,6 +1170,18 @@ export default function App() {
     const ok = await copyToClipboard(buildIncidentDraft());
     setBanner(ok ? "Copied incident draft." : "Unable to copy incident draft in this browser.");
   }, [buildIncidentDraft]);
+
+  const copyApprovalLink = useCallback(async () => {
+    const share = buildShareLocation({ approvalId: selectedApproval?.id ?? null, runId: null });
+    const ok = await copyToClipboard(share.href);
+    setBanner(ok ? "Copied approval link." : "Unable to copy approval link in this browser.");
+  }, [selectedApproval?.id]);
+
+  const copyRunLink = useCallback(async () => {
+    const share = buildShareLocation({ approvalId: null, runId: selectedRun?.id ?? null });
+    const ok = await copyToClipboard(share.href);
+    setBanner(ok ? "Copied run link." : "Unable to copy run link in this browser.");
+  }, [selectedRun?.id]);
 
   const togglePin = (id: string) => {
     setPinnedLogs((prev) =>
@@ -1586,8 +1699,8 @@ export default function App() {
 
       <OverviewSection
         approvals={approvals}
-        onViewAll={() => setSelectedApproval(approvals[0] ?? null)}
-        onSelectApproval={(approval) => setSelectedApproval(approval)}
+        onViewAll={() => openApprovalDrawer(approvals[0] ?? null)}
+        onSelectApproval={(approval) => openApprovalDrawer(approval)}
       />
 
       <section className="grid growth-grid">
@@ -1595,7 +1708,7 @@ export default function App() {
         <RunHealthCard
           summary={runHealthSummary}
           atRiskRuns={atRiskRuns}
-          onViewRun={setSelectedRun}
+          onViewRun={openRunDrawer}
           queueingPaused={policy.pauseNewRuns}
           onSetQueueingPaused={setQueueingPaused}
           onCopyOwnerPing={() => void copyOwnerPing()}
@@ -1622,7 +1735,7 @@ export default function App() {
         onQueueRun={() => queueRun({ source: "runs panel" })}
         queueingPaused={policy.pauseNewRuns}
         onRunAction={handleRunAction}
-        onViewDetails={setSelectedRun}
+        onViewDetails={openRunDrawer}
         getRunDurationLabel={getRunDurationLabel}
         getRunSlaBadge={getRunSlaBadgeForRun}
       />
@@ -1704,6 +1817,7 @@ export default function App() {
           approval={selectedApproval}
           approvalDetail={approvalDetail ?? null}
           onClose={() => setSelectedApproval(null)}
+          onCopyLink={() => void copyApprovalLink()}
           onDeny={() => {
             setSelectedApproval(null);
             setBanner(`Denied ${selectedApproval.id}.`);
@@ -1724,6 +1838,7 @@ export default function App() {
           timeline={getRunTimeline(selectedRun)}
           activity={getRunActivityFeed(selectedRun)}
           onClose={() => setSelectedRun(null)}
+          onCopyLink={() => void copyRunLink()}
           panelRef={runDetailPanelRef}
         />
       ) : null}

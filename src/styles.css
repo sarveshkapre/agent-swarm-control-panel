@@ -930,6 +930,12 @@ select {
   justify-content: space-between;
 }
 
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .drawer-body,
 .modal-body {
   display: flex;
