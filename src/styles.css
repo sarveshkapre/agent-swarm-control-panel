@@ -426,6 +426,19 @@ select {
   color: inherit;
 }
 
+textarea {
+  width: 100%;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(11, 13, 19, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: inherit;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  line-height: 1.45;
+}
+
 select {
   flex: 0.6;
 }
@@ -433,6 +446,52 @@ select {
 :root[data-theme="light"] input,
 :root[data-theme="light"] select {
   background: rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme="light"] textarea {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.file-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.file-button input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.verify-result {
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: grid;
+  gap: 10px;
+}
+
+.verify-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.verify-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .agent-list,

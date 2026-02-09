@@ -42,6 +42,23 @@ async function sha256Hex(value: string) {
     .join("");
 }
 
+export type EvidenceVerificationResult = {
+  ok: boolean;
+  algorithm: EvidenceExportPayload["integrity"]["algorithm"];
+  expectedDigest: string | null;
+  actualDigest: string | null;
+  message: string;
+};
+
+function stripEvidenceMeta(payload: EvidenceExportPayload): EvidenceCorePayload {
+  // Preserve key insertion order from the export (schemaVersion + integrity are prepended).
+  // The evidence digest is computed over the "core" payload only.
+  const core = { ...payload } as Record<string, unknown>;
+  delete core.evidenceSchemaVersion;
+  delete core.integrity;
+  return core as unknown as EvidenceCorePayload;
+}
+
 export async function buildEvidenceExportPayload(
   payload: EvidenceCorePayload
 ): Promise<EvidenceExportPayload> {
@@ -63,5 +80,57 @@ export async function buildEvidenceExportPayload(
           computedAt
         },
     ...payload
+  };
+}
+
+export async function verifyEvidenceExportPayload(
+  payload: EvidenceExportPayload
+): Promise<EvidenceVerificationResult> {
+  const expectedDigest = payload.integrity.digest;
+
+  if (payload.integrity.algorithm !== "SHA-256") {
+    return {
+      ok: false,
+      algorithm: payload.integrity.algorithm,
+      expectedDigest,
+      actualDigest: null,
+      message:
+        payload.integrity.algorithm === "none"
+          ? "Evidence pack was exported without a checksum (crypto unavailable)."
+          : "Evidence pack uses an unsupported integrity algorithm."
+    };
+  }
+
+  if (!expectedDigest || !expectedDigest.startsWith("sha256:")) {
+    return {
+      ok: false,
+      algorithm: payload.integrity.algorithm,
+      expectedDigest,
+      actualDigest: null,
+      message: "Evidence pack is missing a SHA-256 digest."
+    };
+  }
+
+  const core = stripEvidenceMeta(payload);
+  const serialized = JSON.stringify(core);
+  const actualHex = await sha256Hex(serialized);
+  if (!actualHex) {
+    return {
+      ok: false,
+      algorithm: payload.integrity.algorithm,
+      expectedDigest,
+      actualDigest: null,
+      message: "Unable to compute checksum in this environment."
+    };
+  }
+
+  const actualDigest = `sha256:${actualHex}`;
+  const ok = actualDigest === expectedDigest;
+  return {
+    ok,
+    algorithm: payload.integrity.algorithm,
+    expectedDigest,
+    actualDigest,
+    message: ok ? "Checksum verified." : "Checksum mismatch."
   };
 }

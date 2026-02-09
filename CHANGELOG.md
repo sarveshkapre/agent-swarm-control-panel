@@ -15,6 +15,7 @@
 ### Added
 - Regression tests around persistence, log streaming toggle, and keyboard shortcut focus.
 - Regression tests for drawer/modal focus management.
+- Evidence pack verification modal (paste/upload + checksum validation).
 - Run composer for queuing local runs (optional template).
 - Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 - Run detail drawer with recent logs and approvals.

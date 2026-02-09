@@ -16,6 +16,7 @@ type LogsCardProps = {
   streaming: boolean;
   onToggleStreaming: () => void;
   onExportEvidence: () => void;
+  onVerifyEvidence: () => void;
 };
 
 export default function LogsCard({
@@ -33,7 +34,8 @@ export default function LogsCard({
   onTogglePin,
   streaming,
   onToggleStreaming,
-  onExportEvidence
+  onExportEvidence,
+  onVerifyEvidence
 }: LogsCardProps) {
   return (
     <div className="card">
@@ -42,6 +44,9 @@ export default function LogsCard({
         <div className="header-actions">
           <button className="ghost" onClick={onToggleStreaming} type="button">
             {streaming ? "Pause stream" : "Start stream"}
+          </button>
+          <button className="ghost" onClick={onVerifyEvidence} type="button">
+            Verify
           </button>
           <button className="ghost" onClick={onExportEvidence} type="button">
             Export

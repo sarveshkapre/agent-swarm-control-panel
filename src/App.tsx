@@ -32,6 +32,9 @@ import ActivationLoopsCard from "./components/ActivationLoopsCard";
 import Banner from "./components/Banner";
 import ControlSurfaceCard from "./components/ControlSurfaceCard";
 import FeedbackPulseCard from "./components/FeedbackPulseCard";
+import EvidenceVerifyModal, {
+  type EvidenceVerifySummary
+} from "./components/EvidenceVerifyModal";
 import IntegrationHubCard from "./components/IntegrationHubCard";
 import LogsCard from "./components/LogsCard";
 import OverviewSection from "./components/OverviewSection";
@@ -43,7 +46,11 @@ import RunHealthCard from "./components/RunHealthCard";
 import RunTemplatesCard from "./components/RunTemplatesCard";
 import ToastStack from "./components/ToastStack";
 import TopBar from "./components/TopBar";
-import { buildEvidenceExportPayload } from "./utils/evidence";
+import {
+  buildEvidenceExportPayload,
+  type EvidenceExportPayload,
+  verifyEvidenceExportPayload
+} from "./utils/evidence";
 import {
   formatRunDurationLabel,
   getRunDurationMinutes,
@@ -494,6 +501,10 @@ export default function App() {
   );
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
+  const [verifyEvidenceOpen, setVerifyEvidenceOpen] = useState(false);
+  const [verifyEvidenceText, setVerifyEvidenceText] = useState("");
+  const [verifyEvidenceResult, setVerifyEvidenceResult] =
+    useState<EvidenceVerifySummary | null>(null);
   const [policy, setPolicy] = useState<PolicySettings>(() => ({
     ...defaultPolicy,
     ...(initialStoredState?.policy ?? {})
@@ -531,7 +542,8 @@ export default function App() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [confirmationToasts, setConfirmationToasts] = useState<ConfirmationToast[]>([]);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
-  const modalPanelRef = useRef<HTMLDivElement>(null);
+  const policyModalPanelRef = useRef<HTMLDivElement>(null);
+  const verifyModalPanelRef = useRef<HTMLDivElement>(null);
   const runDetailPanelRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
@@ -584,12 +596,15 @@ export default function App() {
     []
   );
 
-  const overlayOpen = selectedApproval !== null || selectedRun !== null || policyOpen;
+  const overlayOpen =
+    selectedApproval !== null || selectedRun !== null || policyOpen || verifyEvidenceOpen;
   const activePanelRef = selectedApproval
     ? drawerPanelRef
     : selectedRun
       ? runDetailPanelRef
-      : modalPanelRef;
+      : policyOpen
+        ? policyModalPanelRef
+        : verifyModalPanelRef;
 
   const runData = useMemo(() => {
     const baseRuns = queuedRuns.length === 0 ? runs : [...queuedRuns, ...runs];
@@ -725,6 +740,7 @@ export default function App() {
           setSelectedApproval(null);
           setSelectedRun(null);
           setPolicyOpen(false);
+          setVerifyEvidenceOpen(false);
         }
         return;
       }
@@ -741,6 +757,7 @@ export default function App() {
         setSelectedApproval(null);
         setSelectedRun(null);
         setPolicyOpen(false);
+        setVerifyEvidenceOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -856,6 +873,88 @@ export default function App() {
         ? `Evidence exported (${payload.integrity.digest.slice(0, 18)}...).`
         : "Evidence exported (checksum unavailable in this browser)."
     );
+  };
+
+  const openVerifyEvidence = () => {
+    setSelectedApproval(null);
+    setSelectedRun(null);
+    setPolicyOpen(false);
+    setVerifyEvidenceOpen(true);
+    setVerifyEvidenceResult(null);
+  };
+
+  const closeVerifyEvidence = () => {
+    setVerifyEvidenceOpen(false);
+  };
+
+  const clearVerifyEvidence = () => {
+    setVerifyEvidenceText("");
+    setVerifyEvidenceResult(null);
+  };
+
+  const loadVerifyEvidenceFile = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setVerifyEvidenceText(String(reader.result ?? ""));
+      setVerifyEvidenceResult(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const verifyEvidence = async () => {
+    setVerifyEvidenceResult(null);
+    const parsed = safeJsonParse<unknown>(verifyEvidenceText);
+    if (!parsed || typeof parsed !== "object") {
+      setVerifyEvidenceResult({
+        tone: "high",
+        title: "Invalid JSON",
+        message: "Paste a valid exported evidence JSON payload to verify its checksum.",
+        schemaVersion: null,
+        algorithm: null,
+        expectedDigest: null,
+        actualDigest: null
+      });
+      return;
+    }
+
+    const payload = parsed as EvidenceExportPayload;
+    const schemaVersion =
+      typeof payload.evidenceSchemaVersion === "number" ? payload.evidenceSchemaVersion : null;
+    const algorithm = payload.integrity?.algorithm ? String(payload.integrity.algorithm) : null;
+
+    if (!payload.integrity) {
+      setVerifyEvidenceResult({
+        tone: "high",
+        title: "Missing integrity metadata",
+        message: "This payload does not include an integrity block to verify against.",
+        schemaVersion,
+        algorithm,
+        expectedDigest: null,
+        actualDigest: null
+      });
+      return;
+    }
+
+    const outcome = await verifyEvidenceExportPayload(payload);
+    const tone = outcome.ok ? "low" : outcome.algorithm === "none" ? "medium" : "high";
+    setVerifyEvidenceResult({
+      tone,
+      title: outcome.ok
+        ? "Checksum verified"
+        : outcome.algorithm === "none"
+          ? "Checksum unavailable"
+          : "Checksum verification failed",
+      message: outcome.message,
+      schemaVersion,
+      algorithm: outcome.algorithm,
+      expectedDigest: outcome.expectedDigest,
+      actualDigest: outcome.actualDigest
+    });
+
+    if (outcome.ok && outcome.expectedDigest) {
+      setBanner(`Evidence verified (${outcome.expectedDigest.slice(0, 18)}...).`);
+    }
   };
 
   const exportState = () => {
@@ -1139,10 +1238,14 @@ export default function App() {
           onExportEvidence={() => {
             void exportEvidence();
           }}
+          onVerifyEvidence={openVerifyEvidence}
         />
         <ControlSurfaceCard
           policy={policy}
-          onOpenPolicy={() => setPolicyOpen(true)}
+          onOpenPolicy={() => {
+            setVerifyEvidenceOpen(false);
+            setPolicyOpen(true);
+          }}
           onExportState={exportState}
           onImportClick={() => importInputRef.current?.click()}
           onImportFile={importState}
@@ -1223,7 +1326,22 @@ export default function App() {
           defaultLogBudget={defaultLogBudget}
           defaultSpikeAlerts={defaultSpikeAlerts}
           onClose={() => setPolicyOpen(false)}
-          panelRef={modalPanelRef}
+          panelRef={policyModalPanelRef}
+        />
+      ) : null}
+
+      {verifyEvidenceOpen ? (
+        <EvidenceVerifyModal
+          value={verifyEvidenceText}
+          onValueChange={setVerifyEvidenceText}
+          onLoadFile={loadVerifyEvidenceFile}
+          onVerify={() => {
+            void verifyEvidence();
+          }}
+          onClear={clearVerifyEvidence}
+          onClose={closeVerifyEvidence}
+          result={verifyEvidenceResult}
+          panelRef={verifyModalPanelRef}
         />
       ) : null}
 

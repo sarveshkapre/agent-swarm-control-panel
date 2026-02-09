@@ -7,8 +7,6 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P0` Add evidence-pack checksum verification flow in UI (paste/upload + digest validation against `integrity.digest`).
-- [ ] `P0` Ensure `AGENTS.md`, `PROJECT_MEMORY.md`, and `INCIDENTS.md` are tracked and current (repo contract hygiene).
 - [ ] `P1` Add alert routing/escalation actions from run-health card (owner ping, pause policy, incident create).
 - [ ] `P1` Add integration sync health telemetry (last sync, error state, reconnect action) to Integration Hub.
 - [ ] `P1` Persist user-edited run templates/playbooks (CRUD + localStorage migration).
@@ -54,13 +52,19 @@
 - [x] `P2` Refresh docs for cycle-2 behavior and verification evidence.  
   Date: 2026-02-09  
   Evidence: `README.md`, `CHANGELOG.md`, `UPDATE.md`
+- [x] `P0` Add evidence-pack checksum verification flow in UI (paste/upload + digest validation against `integrity.digest`).  
+  Date: 2026-02-09  
+  Evidence: `src/components/EvidenceVerifyModal.tsx`, `src/utils/evidence.ts`, `src/components/LogsCard.tsx`, `src/App.tsx`, `src/App.test.tsx`, `src/styles.css`
+- [x] `P0` Ensure `AGENTS.md`, `PROJECT_MEMORY.md`, and `INCIDENTS.md` are tracked and current (repo contract hygiene).  
+  Date: 2026-02-09  
+  Evidence: `AGENTS.md`, `PROJECT_MEMORY.md`, `INCIDENTS.md`
 
 ## Insights
 - The recent CI and CodeQL failures (`2026-02-02`) were cancelled jobs with no executable log steps, not reproducible code/test regressions.
 - Highest-impact product issue was queue-action trust: multiple CTA buttons claimed to queue work but did not mutate run state.
 - Evidence export quality matters for operator trust; exporting only seed runs hid queued/overridden live state.
 - Bounded market scan indicates baseline expectations include trace observability, replay/debug context, and operational monitoring; checksum-backed exports align with trust/compliance expectations.
-- Gap map after cycle-2: missing checksum verification flow, weak escalation workflows, and weak integration sync observability.
+- Gap map after 2026-02-09: escalation workflows and integration sync observability are still weak; saved templates/playbooks are still missing.
 
 ## Notes
 - This file is maintained by the autonomous clone loop.

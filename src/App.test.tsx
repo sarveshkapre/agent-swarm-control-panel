@@ -328,6 +328,78 @@ it("exports evidence with integrity metadata", async () => {
   anchorClickSpy.mockRestore();
 });
 
+it("verifies exported evidence bundles against the embedded checksum", async () => {
+  if (!("createObjectURL" in URL)) {
+    Object.defineProperty(URL, "createObjectURL", {
+      value: () => "blob:unsupported",
+      writable: true
+    });
+  }
+  if (!("revokeObjectURL" in URL)) {
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: () => undefined,
+      writable: true
+    });
+  }
+
+  const createObjectURLSpy = vi
+    .spyOn(URL, "createObjectURL")
+    .mockImplementation(() => "blob:mock-url");
+  const revokeObjectURLSpy = vi
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const anchorClickSpy = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+
+  render(<App />);
+  const user = userEvent.setup();
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^Export$/i }));
+  });
+
+  await waitFor(() => {
+    expect(createObjectURLSpy).toHaveBeenCalled();
+  });
+
+  const latestCall =
+    createObjectURLSpy.mock.calls[createObjectURLSpy.mock.calls.length - 1];
+  expect(latestCall).toBeTruthy();
+  const [blob] = latestCall as [Blob];
+  const blobText = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^Verify$/i }));
+  });
+
+  const modal = await screen.findByRole("dialog", { name: /Verify evidence pack/i });
+  const textarea = within(modal).getByLabelText(/Evidence JSON/i);
+  fireEvent.change(textarea, { target: { value: blobText } });
+
+  await act(async () => {
+    await user.click(within(modal).getByRole("button", { name: /Verify checksum/i }));
+  });
+
+  await waitFor(() => {
+    const verified = within(modal).queryByText(/^Checksum verified$/i);
+    const unavailable = within(modal).queryByText(/^Checksum unavailable$/i);
+    expect(verified || unavailable).toBeTruthy();
+  });
+  const pillVerified = within(modal).queryByText(/^VERIFIED$/i);
+  const pillWarning = within(modal).queryByText(/^WARNING$/i);
+  expect(pillVerified || pillWarning).toBeTruthy();
+
+  createObjectURLSpy.mockRestore();
+  revokeObjectURLSpy.mockRestore();
+  anchorClickSpy.mockRestore();
+});
+
 it("sanitizes malformed imported state instead of applying unsafe values", async () => {
   render(<App />);
 
