@@ -31,6 +31,9 @@
 - [x] `P1` Harden GitHub Actions workflows with explicit job timeouts and manual dispatch triggers.  
   Date: 2026-02-08  
   Evidence: `.github/workflows/ci.yml`, `.github/workflows/codeql.yml`
+- [x] `P2` Bump GitHub CodeQL Action to `v4` to avoid deprecation warnings.  
+  Date: 2026-02-09  
+  Evidence: `.github/workflows/codeql.yml`
 - [x] `P1` Align docs with shipped behavior and verification paths.  
   Date: 2026-02-08  
   Evidence: `README.md`, `CHANGELOG.md`, `UPDATE.md`
