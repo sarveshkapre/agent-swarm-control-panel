@@ -511,6 +511,23 @@ select {
   background: rgba(255, 255, 255, 0.9);
 }
 
+.code-block {
+  width: 100%;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(11, 13, 19, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  overflow: auto;
+  max-height: 260px;
+  white-space: pre;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+:root[data-theme="light"] .code-block {
+  background: rgba(255, 255, 255, 0.9);
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;

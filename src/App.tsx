@@ -34,6 +34,7 @@ import ActivationLoopsCard from "./components/ActivationLoopsCard";
 import Banner from "./components/Banner";
 import ControlSurfaceCard from "./components/ControlSurfaceCard";
 import FeedbackPulseCard from "./components/FeedbackPulseCard";
+import EvidenceExportViewerModal from "./components/EvidenceExportViewerModal";
 import EvidenceVerifyModal, {
   type EvidenceVerifySummary
 } from "./components/EvidenceVerifyModal";
@@ -630,6 +631,11 @@ export default function App() {
   );
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
+  const [evidenceViewerOpen, setEvidenceViewerOpen] = useState(false);
+  const [evidenceViewerLoading, setEvidenceViewerLoading] = useState(false);
+  const [evidenceViewerError, setEvidenceViewerError] = useState<string | null>(null);
+  const [evidenceViewerPayload, setEvidenceViewerPayload] =
+    useState<EvidenceExportPayload | null>(null);
   const [verifyEvidenceOpen, setVerifyEvidenceOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [verifyEvidenceText, setVerifyEvidenceText] = useState("");
@@ -690,6 +696,7 @@ export default function App() {
   const [confirmationToasts, setConfirmationToasts] = useState<ConfirmationToast[]>([]);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const policyModalPanelRef = useRef<HTMLDivElement>(null);
+  const evidenceViewerPanelRef = useRef<HTMLDivElement>(null);
   const verifyModalPanelRef = useRef<HTMLDivElement>(null);
   const runDetailPanelRef = useRef<HTMLDivElement>(null);
   const templateModalPanelRef = useRef<HTMLDivElement>(null);
@@ -754,6 +761,7 @@ export default function App() {
     selectedApproval !== null ||
     selectedRun !== null ||
     policyOpen ||
+    evidenceViewerOpen ||
     verifyEvidenceOpen ||
     templateModalOpen;
   const activePanelRef = selectedApproval
@@ -762,9 +770,11 @@ export default function App() {
       ? runDetailPanelRef
       : policyOpen
         ? policyModalPanelRef
-        : verifyEvidenceOpen
-          ? verifyModalPanelRef
-          : templateModalPanelRef;
+        : evidenceViewerOpen
+          ? evidenceViewerPanelRef
+          : verifyEvidenceOpen
+            ? verifyModalPanelRef
+            : templateModalPanelRef;
 
   const runData = useMemo(() => {
     const baseRuns = queuedRuns.length === 0 ? runs : [...queuedRuns, ...runs];
@@ -780,6 +790,7 @@ export default function App() {
     setSelectedApproval(approval);
     if (approval) {
       setPolicyOpen(false);
+      setEvidenceViewerOpen(false);
       setVerifyEvidenceOpen(false);
       setTemplateModalOpen(false);
     }
@@ -790,6 +801,7 @@ export default function App() {
     setSelectedRun(run);
     if (run) {
       setPolicyOpen(false);
+      setEvidenceViewerOpen(false);
       setVerifyEvidenceOpen(false);
       setTemplateModalOpen(false);
     }
@@ -977,6 +989,7 @@ export default function App() {
           setSelectedApproval(null);
           setSelectedRun(null);
           setPolicyOpen(false);
+          setEvidenceViewerOpen(false);
           setVerifyEvidenceOpen(false);
           setTemplateModalOpen(false);
         }
@@ -995,6 +1008,7 @@ export default function App() {
         setSelectedApproval(null);
         setSelectedRun(null);
         setPolicyOpen(false);
+        setEvidenceViewerOpen(false);
         setVerifyEvidenceOpen(false);
         setTemplateModalOpen(false);
       }
@@ -1183,6 +1197,22 @@ export default function App() {
     setBanner(ok ? "Copied run link." : "Unable to copy run link in this browser.");
   }, [selectedRun?.id]);
 
+  const copyEvidenceDigest = useCallback(async () => {
+    const digest = evidenceViewerPayload?.integrity?.digest;
+    if (!digest) {
+      setBanner("No checksum available for this export.");
+      return;
+    }
+    const ok = await copyToClipboard(digest);
+    setBanner(ok ? "Copied evidence checksum." : "Unable to copy checksum in this browser.");
+  }, [evidenceViewerPayload]);
+
+  const copyEvidenceJson = useCallback(async () => {
+    if (!evidenceViewerPayload) return;
+    const ok = await copyToClipboard(JSON.stringify(evidenceViewerPayload, null, 2));
+    setBanner(ok ? "Copied evidence JSON." : "Unable to copy evidence JSON in this browser.");
+  }, [evidenceViewerPayload]);
+
   const togglePin = (id: string) => {
     setPinnedLogs((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -1213,11 +1243,51 @@ export default function App() {
     );
   };
 
+  const openEvidenceViewer = () => {
+    setSelectedApproval(null);
+    setSelectedRun(null);
+    setPolicyOpen(false);
+    setTemplateModalOpen(false);
+    setVerifyEvidenceOpen(false);
+    setEvidenceViewerOpen(true);
+    setEvidenceViewerLoading(true);
+    setEvidenceViewerError(null);
+    setEvidenceViewerPayload(null);
+
+    void buildEvidenceExportPayload({
+      generatedAt: new Date().toISOString(),
+      policy,
+      runHealthSummary,
+      agents,
+      runs: runData,
+      queuedRuns,
+      runOverrides,
+      approvals,
+      logs,
+      logBudget,
+      spikeAlerts,
+      templates,
+      selectedTemplateId
+    })
+      .then((payload) => {
+        setEvidenceViewerPayload(payload);
+      })
+      .catch((error: unknown) => {
+        setEvidenceViewerError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => setEvidenceViewerLoading(false));
+  };
+
+  const closeEvidenceViewer = () => {
+    setEvidenceViewerOpen(false);
+  };
+
   const openVerifyEvidence = () => {
     setSelectedApproval(null);
     setSelectedRun(null);
     setPolicyOpen(false);
     setTemplateModalOpen(false);
+    setEvidenceViewerOpen(false);
     setVerifyEvidenceOpen(true);
     setVerifyEvidenceResult(null);
   };
@@ -1465,6 +1535,7 @@ export default function App() {
     setSelectedApproval(null);
     setSelectedRun(null);
     setPolicyOpen(false);
+    setEvidenceViewerOpen(false);
     setVerifyEvidenceOpen(false);
     setTemplateDraft(draft);
     setTemplateModalOpen(true);
@@ -1756,6 +1827,7 @@ export default function App() {
           onTogglePin={togglePin}
           streaming={streaming}
           onToggleStreaming={() => setStreaming((prev) => !prev)}
+          onViewEvidence={openEvidenceViewer}
           onExportEvidence={() => {
             void exportEvidence();
           }}
@@ -1764,6 +1836,7 @@ export default function App() {
         <ControlSurfaceCard
           policy={policy}
           onOpenPolicy={() => {
+            setEvidenceViewerOpen(false);
             setVerifyEvidenceOpen(false);
             setTemplateModalOpen(false);
             setPolicyOpen(true);
@@ -1856,6 +1929,23 @@ export default function App() {
           defaultSpikeAlerts={defaultSpikeAlerts}
           onClose={() => setPolicyOpen(false)}
           panelRef={policyModalPanelRef}
+        />
+      ) : null}
+
+      {evidenceViewerOpen ? (
+        <EvidenceExportViewerModal
+          payload={evidenceViewerPayload}
+          loading={evidenceViewerLoading}
+          error={evidenceViewerError}
+          onCopyDigest={() => void copyEvidenceDigest()}
+          onCopyJson={() => void copyEvidenceJson()}
+          onDownload={() => {
+            if (!evidenceViewerPayload) return;
+            downloadJson("agent-swarm-evidence-pack.json", evidenceViewerPayload);
+            setBanner("Downloaded evidence JSON.");
+          }}
+          onClose={closeEvidenceViewer}
+          panelRef={evidenceViewerPanelRef}
         />
       ) : null}
 

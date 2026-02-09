@@ -464,6 +464,22 @@ it("exports evidence with integrity metadata", async () => {
   anchorClickSpy.mockRestore();
 });
 
+it("opens the evidence export viewer with schema metadata preview", async () => {
+  render(<App />);
+  const user = userEvent.setup();
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /View export/i }));
+  });
+
+  const modal = await screen.findByRole("dialog", { name: /Evidence export/i });
+  await waitFor(() => {
+    expect(within(modal).getByText("Schema")).toBeInTheDocument();
+    expect(within(modal).getByRole("button", { name: /Copy JSON/i })).toBeInTheDocument();
+  });
+  expect(within(modal).getByRole("button", { name: /Download JSON/i })).toBeInTheDocument();
+});
+
 it("verifies exported evidence bundles against the embedded checksum", async () => {
   if (!("createObjectURL" in URL)) {
     Object.defineProperty(URL, "createObjectURL", {
