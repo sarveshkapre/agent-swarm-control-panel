@@ -36,6 +36,18 @@
 - Confidence: high.
 - Trust label: `verified-local` for code/tests/smoke/commands, `external-docs` for market scan synthesis.
 
+## Entry: 2026-02-10 (Cleanup Refactor 1)
+- Decision: Extract stored-state JSON parsing and hydration sanitization out of `src/App.tsx` into dedicated utilities.
+- Why: `src/App.tsx` was accumulating unrelated concerns (UI + persistence + runtime sanitization). Pulling hydration logic into `src/utils/` reduces cognitive load, makes the sanitization code easier to test/reuse, and lowers regression risk for future UI work.
+- Shipped:
+  1) `src/utils/storedState.ts`: safe localStorage access + state sanitizers + `readStoredState(...)`.
+  2) `src/utils/json.ts`: shared `safeJsonParse(...)` helper.
+  3) `src/App.tsx`: now consumes the utilities; UI behavior unchanged.
+- Verification evidence (local):
+  - `npm run check` (pass).
+- Confidence: high.
+- Trust label: `verified-local`.
+
 ## Entry: 2026-02-09 (Global Cycle 5)
 - Decision: Ship handoff-grade deep-links (run/approval drawers) and a first-class evidence export viewer before expanding observability surfaces.
 - Why: Operators need to hand off a specific run/approval context quickly (incident response, reviews), and evidence workflows should not require downloading/parsing raw JSON to confirm schema/metadata and copy checksums.

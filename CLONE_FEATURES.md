@@ -12,6 +12,7 @@
 - [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
 - [ ] `P3` Lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
 - [ ] `P3` Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
+- [ ] `P3` Refactor: extract stored-state hydration + sanitization utilities out of `src/App.tsx` to reduce churn risk.
 
 ## Implemented
 - [x] `P1` Agent workload heatmap + SLA alerting (per-agent queued/running/waiting counts, at-risk/breached highlights, local-only).  
@@ -86,6 +87,9 @@
 - [x] `P0` Ensure `AGENTS.md`, `PROJECT_MEMORY.md`, and `INCIDENTS.md` are tracked and current (repo contract hygiene).  
   Date: 2026-02-09  
   Evidence: `AGENTS.md`, `PROJECT_MEMORY.md`, `INCIDENTS.md`
+- [x] `P3` Refactor stored-state hydration/sanitization into utilities (no behavior change).  
+  Date: 2026-02-10  
+  Evidence: `src/utils/storedState.ts`, `src/utils/json.ts`, `src/App.tsx`
 
 ## Insights
 - The recent CI and CodeQL failures (`2026-02-02`) were cancelled jobs with no executable log steps, not reproducible code/test regressions.
