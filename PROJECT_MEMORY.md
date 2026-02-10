@@ -1,5 +1,38 @@
 # Project Memory
 
+## Entry: 2026-02-10 (Global Cycle 1)
+- Decision: Add an operator-first workload heatmap and a trace-waterfall baseline inside run details before expanding integrations or telemetry.
+- Why: Operators need fast capacity awareness (who is overloaded, where queued/waiting pressure is building) and a visual timing surface to make “trace” expectations concrete even in a local-only MVP.
+- Bounded market scan (untrusted external synthesis, references):
+  - LangGraph Studio (visual execution + debugging): https://langchain-ai.github.io/langgraph/concepts/langgraph_studio/
+  - Langfuse tracing (run history + drilldown): https://langfuse.com/docs/tracing
+  - LangSmith observability concepts (baseline UX expectations): https://docs.langchain.com/langsmith/observability-concepts
+  - AutoGen Studio (agent workflow UI patterns): https://microsoft.github.io/autogen/docs/autogen-studio/
+- Gap map:
+  Missing: per-agent workload view derived from run state; a trace waterfall view to anchor observability expectations.
+  Weak: operators had to infer “who is overloaded” from run list + logs; run detail lacked any timing/trace surface.
+  Parity: run-health escalation actions, deep-linkable drawers, evidence export/verify/viewer, integration sync health telemetry.
+  Differentiator opportunity: local-first control plane that still supports incident-grade handoff via lightweight observability surfaces and checksum-backed evidence.
+- Candidate scoring (selected items first):
+  1) Agent workload heatmap + SLA alerting (Impact 8, Effort 3, Fit 9, Diff 4, Risk 2, Confidence 8).
+  2) Trace waterfall mock view in run details (Impact 7, Effort 3, Fit 8, Diff 4, Risk 2, Confidence 7).
+  3) Run annotations + tags (Impact 6, Effort 4, Fit 8, Diff 4, Risk 3, Confidence 6).
+- Shipped:
+  1) Agent workload card (status counts per agent + SLA alert list) derived from current run set.
+  2) Trace waterfall section in run details with mock spans and timing bars (+ synthetic fallback trace).
+- Verification evidence (local):
+  - `npm run check` (pass).
+  - Smoke (pass): `npm run preview` + `curl -fsSLI http://localhost:4173/ | head` (HTTP 200).
+- Verification evidence (CI):
+  - Pending (will be recorded after push).
+- Mistakes and fixes:
+  - Root cause: a test used a broad `getByText(/Atlas/i)` selector and failed once the workload card rendered multiple “Atlas” instances (table + SLA alerts).
+  - Fix: scoped assertions to the relevant container (`.workload-alerts`) and used role queries for the table.
+  - Prevention rule: prefer scoped queries (`within(...)`) and role/name selectors over broad text matches in UI tests.
+- Commit: pending.
+- Confidence: high.
+- Trust label: `verified-local` for code/tests/smoke/commands, `external-docs` for market scan synthesis.
+
 ## Entry: 2026-02-09 (Global Cycle 5)
 - Decision: Ship handoff-grade deep-links (run/approval drawers) and a first-class evidence export viewer before expanding observability surfaces.
 - Why: Operators need to hand off a specific run/approval context quickly (incident response, reviews), and evidence workflows should not require downloading/parsing raw JSON to confirm schema/metadata and copy checksums.

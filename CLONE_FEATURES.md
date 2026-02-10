@@ -9,12 +9,17 @@
 ## Candidate Features To Do
 - [ ] `P2` Template import/export as JSON for sharing playbooks (separate from full workspace state).
 - [ ] `P2` Run annotations + tags (operator notes) with tag-based filtering.
-- [ ] `P2` Trace waterfall mock view in run details (spans + timing) to set observability baseline.
+- [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
 - [ ] `P3` Lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
 - [ ] `P3` Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
-- [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
 
 ## Implemented
+- [x] `P1` Agent workload heatmap + SLA alerting (per-agent queued/running/waiting counts, at-risk/breached highlights, local-only).  
+  Date: 2026-02-10  
+  Evidence: `src/components/AgentWorkloadCard.tsx`, `src/App.tsx`, `src/styles.css`, `src/App.test.tsx`
+- [x] `P2` Trace waterfall mock view in run details (spans + timing bars) to set observability UX baseline.  
+  Date: 2026-02-10  
+  Evidence: `src/components/TraceWaterfall.tsx`, `src/components/RunDetailDrawer.tsx`, `src/App.tsx`, `src/types.ts`, `src/styles.css`, `src/App.test.tsx`
 - [x] `P1` Deep-linkable run + approval drawers (URL state, copy link, back/forward sync).  
   Date: 2026-02-09  
   Evidence: `src/App.tsx`, `src/components/ApprovalDrawer.tsx`, `src/components/RunDetailDrawer.tsx`, `src/App.test.tsx`

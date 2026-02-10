@@ -8,9 +8,14 @@
 - Emergency stop (pause new runs) + run-health escalation draft copying
 - Integration Hub sync-health telemetry + reconnect (local-only)
 
+## Shipped (2026-02-10)
+- Agent workload heatmap + SLA alerting (local-only, derived from current run state).
+- Trace waterfall mock view in run details (spans + timing bars).
+
 ## Near-term
-- Agent workload heatmap and SLA alerts
-- Trace waterfall mock view in run details
+- Run annotations + tags (operator notes) with tag-based filtering.
+- Template import/export as JSON for sharing playbooks (separate from workspace state).
+- Operator handoff bundle: copy run summary + approvals + last 5 logs in one click.
 
 ## Later
 - Pluggable data adapters for real agent runtimes

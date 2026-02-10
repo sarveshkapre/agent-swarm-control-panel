@@ -307,6 +307,25 @@ it("shows run health summary metrics and at-risk run details", () => {
   ).toBeInTheDocument();
 });
 
+it("shows agent workload heatmap and SLA alerts", () => {
+  render(<App />);
+
+  const workloadCard = screen.getByText(/Agent workload/i).closest(".card") as
+    | HTMLElement
+    | null;
+  expect(workloadCard).not.toBeNull();
+
+  const table = within(workloadCard!).getByRole("table", { name: /Agent workload/i });
+  expect(within(table).getByText(/Atlas/i)).toBeInTheDocument();
+  expect(within(table).getByText(/Horizon/i)).toBeInTheDocument();
+  expect(within(table).getByText(/Queued/i)).toBeInTheDocument();
+  expect(within(table).getByText(/Waiting/i)).toBeInTheDocument();
+
+  const alerts = within(workloadCard!).getByText(/SLA alerts/i).closest(".workload-alerts");
+  expect(alerts).not.toBeNull();
+  expect(within(alerts as HTMLElement).getByText(/Atlas/i)).toBeInTheDocument();
+});
+
 it("copies escalation drafts from the run health summary card", async () => {
   try {
     Object.defineProperty(window.navigator, "clipboard", {
@@ -625,6 +644,8 @@ it("opens run details with recent logs and approvals", async () => {
   expect(within(dialog).getByText(/Run open web crawl/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Timeline/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Execution/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Trace waterfall/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Implement: UI slice/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Activity feed/i)).toBeInTheDocument();
   expect(within(dialog).getByText(/Kickoff briefing delivered/i)).toBeInTheDocument();
 });

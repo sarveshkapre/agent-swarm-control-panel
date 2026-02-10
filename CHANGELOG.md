@@ -25,7 +25,9 @@
 - Run composer for queuing local runs (optional template).
 - Per-run actions (pause, retry, cancel) gated by confirmation toasts.
 - Run detail drawer with recent logs and approvals.
+- Trace waterfall mock view in run details (spans + timing bars).
 - Run-level SLA badges and duration tracking.
+- Agent workload heatmap + SLA alerting (per-agent status counts, local-only).
 - Run phase timeline inside the run detail drawer.
 - Per-run activity feed with key events.
 - Growth momentum dashboard with outcome scorecard, activation loops, integration launchpad, and feedback radar.

@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
-import type { Approval, LogEntry, Run, RunActivity, RunPhase } from "../types";
+import type { Approval, LogEntry, Run, RunActivity, RunPhase, RunTraceSpan } from "../types";
+import TraceWaterfall from "./TraceWaterfall";
 
 type RunDetailDrawerProps = {
   run: Run;
@@ -7,6 +8,7 @@ type RunDetailDrawerProps = {
   approvals: Approval[];
   timeline: RunPhase[];
   activity: RunActivity[];
+  trace: RunTraceSpan[];
   onClose: () => void;
   onCopyLink?: () => void;
   panelRef: RefObject<HTMLDivElement>;
@@ -18,6 +20,7 @@ export default function RunDetailDrawer({
   approvals,
   timeline,
   activity,
+  trace,
   onClose,
   onCopyLink,
   panelRef
@@ -84,6 +87,10 @@ export default function RunDetailDrawer({
                 );
               })}
             </ul>
+          </div>
+          <div className="drawer-section">
+            <h4>Trace waterfall</h4>
+            <TraceWaterfall spans={trace} />
           </div>
           <div className="drawer-section">
             <h4>Recent logs</h4>

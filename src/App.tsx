@@ -21,6 +21,7 @@ import type {
   RunActivity,
   RunHealthSummary,
   RunPhase,
+  RunTraceSpan,
   RunStatus,
   RunStatusFilter,
   RunTemplate,
@@ -31,6 +32,7 @@ import ApprovalDrawer from "./components/ApprovalDrawer";
 import ApprovalSimulationCard from "./components/ApprovalSimulationCard";
 import AgentsRunsSection from "./components/AgentsRunsSection";
 import ActivationLoopsCard from "./components/ActivationLoopsCard";
+import AgentWorkloadCard from "./components/AgentWorkloadCard";
 import Banner from "./components/Banner";
 import ControlSurfaceCard from "./components/ControlSurfaceCard";
 import FeedbackPulseCard from "./components/FeedbackPulseCard";
@@ -490,6 +492,73 @@ const defaultRunActivityFeed: Record<string, RunActivity[]> = {
       timestamp: "Yesterday 15:22",
       occurredAtIso: minutesAgoIso(60),
       type: "system"
+    }
+  ]
+};
+
+const defaultRunTrace: Record<string, RunTraceSpan[]> = {
+  "r-114": [
+    {
+      id: "sp-114-1",
+      name: "Plan: assign playbook",
+      agent: "Atlas",
+      startOffsetMs: 0,
+      durationMs: 1800,
+      depth: 0,
+      status: "ok",
+      detail: "Selected onboarding template"
+    },
+    {
+      id: "sp-114-2",
+      name: "Research: gather sources",
+      agent: "Atlas",
+      startOffsetMs: 900,
+      durationMs: 7200,
+      depth: 1,
+      status: "running",
+      detail: "18 sources ranked"
+    },
+    {
+      id: "sp-114-3",
+      name: "Implement: UI slice",
+      agent: "Nova",
+      startOffsetMs: 2200,
+      durationMs: 16500,
+      depth: 0,
+      status: "running",
+      detail: "Wizard + tests"
+    },
+    {
+      id: "sp-114-4",
+      name: "QA: regression pass",
+      agent: "Kite",
+      startOffsetMs: 8800,
+      durationMs: 5200,
+      depth: 0,
+      status: "waiting",
+      detail: "Blocked on staging"
+    }
+  ],
+  "r-113": [
+    {
+      id: "sp-113-1",
+      name: "Plan: approval gate",
+      agent: "Atlas",
+      startOffsetMs: 0,
+      durationMs: 2200,
+      depth: 0,
+      status: "waiting",
+      detail: "External crawl approval pending"
+    },
+    {
+      id: "sp-113-2",
+      name: "Draft: competitive brief",
+      agent: "Horizon",
+      startOffsetMs: 1800,
+      durationMs: 7800,
+      depth: 0,
+      status: "waiting",
+      detail: "Waiting on sources"
     }
   ]
 };
@@ -1489,6 +1558,41 @@ export default function App() {
 
   const getRunTimeline = (run: Run) => defaultRunPhaseTimeline[run.id] ?? buildDefaultTimeline(run);
 
+  const buildDefaultTrace = (run: Run): RunTraceSpan[] => {
+    const status: RunTraceSpan["status"] =
+      run.status === "failed"
+        ? "error"
+        : run.status === "waiting"
+          ? "waiting"
+          : run.status === "running"
+            ? "running"
+            : "ok";
+    return [
+      {
+        id: `${run.id}-trace-plan`,
+        name: "Plan: kickoff",
+        agent: run.agents[0] ?? "System",
+        startOffsetMs: 0,
+        durationMs: 2400,
+        depth: 0,
+        status: status === "error" ? "error" : "ok",
+        detail: "Default trace (synthetic)"
+      },
+      {
+        id: `${run.id}-trace-exec`,
+        name: "Execute: agent loop",
+        agent: run.agents[0] ?? "System",
+        startOffsetMs: 2400,
+        durationMs: 8400,
+        depth: 0,
+        status,
+        detail: "Default trace (synthetic)"
+      }
+    ];
+  };
+
+  const getRunTrace = (run: Run) => defaultRunTrace[run.id] ?? buildDefaultTrace(run);
+
   const submitComposer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedObjective = composerObjective.trim();
@@ -1785,6 +1889,11 @@ export default function App() {
           onCopyOwnerPing={() => void copyOwnerPing()}
           onCopyIncidentDraft={() => void copyIncidentDraft()}
         />
+        <AgentWorkloadCard
+          agents={agents}
+          runs={runData}
+          getRunSlaTone={(run) => getRunSlaBadgeForRun(run).tone}
+        />
         <ActivationLoopsCard loops={activationLoops} onToggle={toggleLoopStatus} />
         <IntegrationHubCard
           integrations={integrationOptions}
@@ -1910,6 +2019,7 @@ export default function App() {
           approvals={runDetailApprovals}
           timeline={getRunTimeline(selectedRun)}
           activity={getRunActivityFeed(selectedRun)}
+          trace={getRunTrace(selectedRun)}
           onClose={() => setSelectedRun(null)}
           onCopyLink={() => void copyRunLink()}
           panelRef={runDetailPanelRef}

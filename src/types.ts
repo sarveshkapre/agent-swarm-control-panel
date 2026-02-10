@@ -46,6 +46,19 @@ export type Run = {
   tokens: string;
 };
 
+export type RunTraceSpanStatus = "ok" | "running" | "waiting" | "error";
+
+export type RunTraceSpan = {
+  id: string;
+  name: string;
+  agent: string;
+  startOffsetMs: number;
+  durationMs: number;
+  depth: number;
+  status: RunTraceSpanStatus;
+  detail?: string;
+};
+
 export type Approval = {
   id: string;
   title: string;
