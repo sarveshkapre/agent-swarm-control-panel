@@ -24,12 +24,13 @@
   - `npm run check` (pass).
   - Smoke (pass): `npm run preview` + `curl -fsSLI http://localhost:4173/ | head` (HTTP 200).
 - Verification evidence (CI):
-  - Pending (will be recorded after push).
+  - `gh run watch 21858851592 --exit-status` (pass).
+  - `gh run watch 21858851628 --exit-status` (pass).
 - Mistakes and fixes:
   - Root cause: a test used a broad `getByText(/Atlas/i)` selector and failed once the workload card rendered multiple “Atlas” instances (table + SLA alerts).
   - Fix: scoped assertions to the relevant container (`.workload-alerts`) and used role queries for the table.
   - Prevention rule: prefer scoped queries (`within(...)`) and role/name selectors over broad text matches in UI tests.
-- Commit: pending.
+- Commits: `f1cdee7`, `ac6d2b7`.
 - Confidence: high.
 - Trust label: `verified-local` for code/tests/smoke/commands, `external-docs` for market scan synthesis.
 
