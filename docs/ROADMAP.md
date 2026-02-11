@@ -12,10 +12,15 @@
 - Agent workload heatmap + SLA alerting (local-only, derived from current run state).
 - Trace waterfall mock view in run details (spans + timing bars).
 
+## Shipped (2026-02-11)
+- Run annotations + tags with tag-based filtering in the runs triage view.
+- Operator handoff bundle copy action from run details (summary + approvals + last 5 logs + notes).
+- Template library import/export as JSON (separate from workspace state import/export).
+
 ## Near-term
-- Run annotations + tags (operator notes) with tag-based filtering.
-- Template import/export as JSON for sharing playbooks (separate from workspace state).
-- Operator handoff bundle: copy run summary + approvals + last 5 logs in one click.
+- Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
+- Empty-state UX for combined run filters (status/search/tag) with one-click "clear filters".
+- Include run annotations in evidence export payload and verification summary metadata.
 
 ## Later
 - Pluggable data adapters for real agent runtimes

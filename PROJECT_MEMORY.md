@@ -1,5 +1,42 @@
 # Project Memory
 
+## Entry: 2026-02-11 (Global Cycle 1)
+### Recent Decisions
+- Date: 2026-02-11
+- Decision: Prioritize run annotations/tags, one-click handoff bundles, and template JSON sharing before additional dashboard surface area.
+- Why: The highest-value remaining operator loop was handoff/triage speed. Existing run details had strong context but no persistent operator notes, no tag-based run slicing, and no lightweight template sharing path.
+- Market scan (bounded, untrusted references):
+  - OpenAI Agents SDK tracing: https://openai.github.io/openai-agents-python/tracing/
+  - CrewAI observability framing: https://www.crewai.com/open-source
+  - Langfuse docs/product framing: https://www.langfuse.com/docs
+  - AutoGen Studio user guide: https://microsoft.github.io/autogen/stable/user-guide/autogenstudio-user-guide/index.html
+- Gap map:
+  - Missing: persistent run annotations + tag triage; run-level handoff export for humans; template-only share/import path.
+  - Weak: operators had to hand-copy context from several panels when escalating a run.
+  - Parity: trace waterfall baseline, deep links, evidence checksum verify/viewer, integration sync telemetry.
+  - Differentiator opportunity: local-first control plane with incident-grade handoff context and portable playbook libraries.
+- Candidate scoring (selected first):
+  1) Run annotations + tags + tag filtering (Impact 9, Effort 4, Strategic fit 9, Differentiation 6, Risk 3, Confidence 8).
+  2) Run handoff bundle copy action (Impact 8, Effort 3, Strategic fit 9, Differentiation 6, Risk 2, Confidence 9).
+  3) Template import/export JSON (Impact 8, Effort 3, Strategic fit 8, Differentiation 5, Risk 3, Confidence 8).
+  4) Drawer/modal accessibility hardening + tests (Impact 7, Effort 4, Strategic fit 8, Differentiation 3, Risk 3, Confidence 7).
+  5) Evidence exports including annotation context (Impact 7, Effort 4, Strategic fit 8, Differentiation 4, Risk 3, Confidence 7).
+- Evidence: `src/App.tsx`, `src/components/RunDetailDrawer.tsx`, `src/components/AgentsRunsSection.tsx`, `src/components/RunTemplatesCard.tsx`, `src/utils/storedState.ts`, `src/types.ts`, `src/App.test.tsx`.
+- Commit: `d84ef65`.
+- Confidence: high.
+- Trust label: `trusted` for local code/tests/CI evidence; `untrusted` for external market scan links.
+
+### Mistakes And Fixes
+- Root cause: New template-library import/export test asserted an unscoped text match and collided with a matching `<option>` label in the run-composer template selector.
+- Fix: Scoped the assertion to the templates card container.
+- Prevention rule: Prefer scoped queries (`within(container)`) whenever text can legitimately appear in multiple UI regions.
+
+### Verification Evidence
+- `npm run check` -> pass.
+- `npm run preview > /tmp/agent-swarm-preview.log 2>&1 & ...; curl -fsS -D - http://127.0.0.1:4173/ ...` -> pass (`HTTP/1.1 200 OK`).
+- `gh run watch 21896840338 --exit-status` -> pass (CI for `d84ef65`).
+- `gh run watch 21896840334 --exit-status` -> pass (CodeQL for `d84ef65`).
+
 ## Entry: 2026-02-10 (Global Cycle 1)
 - Decision: Add an operator-first workload heatmap and a trace-waterfall baseline inside run details before expanding integrations or telemetry.
 - Why: Operators need fast capacity awareness (who is overloaded, where queued/waiting pressure is building) and a visual timing surface to make “trace” expectations concrete even in a local-only MVP.

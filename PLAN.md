@@ -10,16 +10,14 @@ One local-first UI to orchestrate multiple agents (researcher/coder/tester/write
 - Local persistence (localStorage), keyboard shortcuts, light/dark theme
 
 ## Shipped (this run)
-- Evidence export integrity metadata + checksum verification modal.
-- Run health summary + run detail drawer (timeline, activity feed, approvals, recent logs).
-- Template editor modal with persisted templates/playbooks (CRUD).
-- Run status filter chips for fast triage.
+- Run annotations + tags persisted in workspace state, with tag-based run filtering.
+- Operator handoff bundle copy action from run details (summary, approvals, last 5 logs, notes).
+- Template library import/export JSON flow (separate from workspace state import/export).
 
 ## Next to ship
-- Integration sync health telemetry (last sync, error state, reconnect CTA).
-- Escalation actions from run health (ping owner, incident draft, pause policy).
-- Shareable deep-links to run/approval drawers for incident handoff.
-- Evidence export viewer (schema/meta preview + copy snippets).
+- Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
+- Run-filter empty state with clear-filter CTA when status/search/tag filters return zero runs.
+- Include run annotations in evidence payload + checksum verification summary.
 
 ## Top risks / unknowns
 - Scope creep without a real backend runtime adapter.

@@ -38,6 +38,10 @@
 - Evidence export integrity metadata (`evidenceSchemaVersion`, SHA-256 digest, checksum timestamp).
 - Evidence export now includes saved templates and selected template context (schema bumped to `3`).
 - Regression tests for evidence integrity export and malformed state import sanitization.
+- Run annotations + tags in run details, with tag-based filtering in the runs panel.
+- One-click run handoff bundle copy action (summary + approvals + last 5 logs + operator notes).
+- Template library JSON import/export flow separate from full workspace-state import/export.
+- Regression tests for run-annotation/tag filtering, handoff copying, and template library import/export.
 
 ### Security
 - Upgrade toolchain to `vite@6.4.1` + `vitest@4.0.18` to clear the esbuild/vite advisory reported by `npm audit`.

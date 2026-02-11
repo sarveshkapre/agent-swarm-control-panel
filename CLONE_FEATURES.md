@@ -7,14 +7,34 @@
 - Gaps found during codebase exploration
 
 ## Candidate Features To Do
-- [ ] `P2` Template import/export as JSON for sharing playbooks (separate from full workspace state).
-- [ ] `P2` Run annotations + tags (operator notes) with tag-based filtering.
-- [ ] `P3` Add a small operator "handoff" bundle: copy run summary + approvals + last 5 logs in one click.
-- [ ] `P3` Lightweight telemetry toggles (local-only counters: runs queued, approvals approved/denied, exports).
-- [ ] `P3` Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
-- [ ] `P3` Refactor: extract stored-state hydration + sanitization utilities out of `src/App.tsx` to reduce churn risk.
+- [ ] `P2` Accessibility pass for drawers/modals (keyboard-only, focus management, aria labels) + regression tests.
+- [ ] `P2` Add role/label coverage tests for newly added run-note and template-import actions.
+- [ ] `P2` Add stale-localStorage recovery banner with one-click reset when persisted payload parsing fails.
+- [ ] `P2` Add empty states for run filters (status/tag/search) with "clear filters" action.
+- [ ] `P2` Add per-run quick links to related approvals from run cards (not only run drawer).
+- [ ] `P2` Add structured evidence fields for run annotations in export payload and checksum verification path.
+- [ ] `P2` Add keyboard shortcut `Shift+N` to open new template modal directly.
+- [ ] `P3` Lightweight telemetry counters (runs queued, approvals approved/denied, exports) persisted locally.
+- [ ] `P3` Allow filtering logs by selected run context from run drawer.
+- [ ] `P3` Add undo for destructive template actions (delete) with timeout toast.
+- [ ] `P3` Add template schema migration helper for future breaking changes.
+- [ ] `P3` Add optional auto-tag suggestions based on run status/SLA tone.
+- [ ] `P3` Add package-size guard in CI (build artifact budget + failure threshold).
+- [ ] `P3` Add runtime performance budget check for initial render in CI smoke.
+- [ ] `P3` Refactor run lifecycle helpers from `src/App.tsx` into dedicated `src/utils/runLifecycle.ts`.
+- [ ] `P3` Add docs split for long operator runbooks under `docs/` and keep README to 1-2 screens.
+- [ ] `P3` Add integration-card inline diagnostics timeline (last 3 sync attempts) for trust/debuggability.
 
 ## Implemented
+- [x] `P1` Run annotations + tags with tag-based filtering (operator notes persisted in workspace state, searchable/triage-ready).  
+  Date: 2026-02-11  
+  Evidence: `src/App.tsx`, `src/components/RunDetailDrawer.tsx`, `src/components/AgentsRunsSection.tsx`, `src/utils/storedState.ts`, `src/types.ts`, `src/App.test.tsx`
+- [x] `P1` Operator handoff bundle copy action from run details (run summary + approvals + last 5 logs + notes).  
+  Date: 2026-02-11  
+  Evidence: `src/App.tsx`, `src/components/RunDetailDrawer.tsx`, `src/App.test.tsx`
+- [x] `P1` Template library import/export JSON flow (separate from full workspace state export/import).  
+  Date: 2026-02-11  
+  Evidence: `src/App.tsx`, `src/components/RunTemplatesCard.tsx`, `src/utils/storedState.ts`, `src/App.test.tsx`
 - [x] `P1` Agent workload heatmap + SLA alerting (per-agent queued/running/waiting counts, at-risk/breached highlights, local-only).  
   Date: 2026-02-10  
   Evidence: `src/components/AgentWorkloadCard.tsx`, `src/App.tsx`, `src/styles.css`, `src/App.test.tsx`
@@ -101,6 +121,11 @@
 - Market baseline signals (untrusted, web): visual trace exploration and replay/time-travel debugging are common UX expectations in agent orchestration tooling; representative references:
   - LangGraph Studio: https://langchain-ai.github.io/langgraph/concepts/langgraph_studio/
   - OpenAI Agents SDK tracing: https://openai.github.io/openai-agents-python/tracing/
+- Bounded market scan update (`2026-02-11`, untrusted external): operator UIs in this segment consistently emphasize observability/traces, iterative workflow editing, and production telemetry baselines:
+  - OpenAI Agents SDK tracing: https://openai.github.io/openai-agents-python/tracing/
+  - CrewAI observability/traces positioning: https://www.crewai.com/open-source
+  - Langfuse docs and product framing: https://www.langfuse.com/docs
+  - AutoGen Studio user guide: https://microsoft.github.io/autogen/stable/user-guide/autogenstudio-user-guide/index.html
 
 ## Notes
 - This file is maintained by the autonomous clone loop.
