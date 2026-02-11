@@ -22,7 +22,7 @@
   4) Drawer/modal accessibility hardening + tests (Impact 7, Effort 4, Strategic fit 8, Differentiation 3, Risk 3, Confidence 7).
   5) Evidence exports including annotation context (Impact 7, Effort 4, Strategic fit 8, Differentiation 4, Risk 3, Confidence 7).
 - Evidence: `src/App.tsx`, `src/components/RunDetailDrawer.tsx`, `src/components/AgentsRunsSection.tsx`, `src/components/RunTemplatesCard.tsx`, `src/utils/storedState.ts`, `src/types.ts`, `src/App.test.tsx`.
-- Commit: `d84ef65`.
+- Commits: `d84ef65`, `42c9a56`.
 - Confidence: high.
 - Trust label: `trusted` for local code/tests/CI evidence; `untrusted` for external market scan links.
 
@@ -36,6 +36,8 @@
 - `npm run preview > /tmp/agent-swarm-preview.log 2>&1 & ...; curl -fsS -D - http://127.0.0.1:4173/ ...` -> pass (`HTTP/1.1 200 OK`).
 - `gh run watch 21896840338 --exit-status` -> pass (CI for `d84ef65`).
 - `gh run watch 21896840334 --exit-status` -> pass (CodeQL for `d84ef65`).
+- `gh run watch 21896927190 --exit-status` -> pass (CI for `42c9a56`).
+- `gh run watch 21896927194 --exit-status` -> pass (CodeQL for `42c9a56`).
 
 ## Entry: 2026-02-10 (Global Cycle 1)
 - Decision: Add an operator-first workload heatmap and a trace-waterfall baseline inside run details before expanding integrations or telemetry.
