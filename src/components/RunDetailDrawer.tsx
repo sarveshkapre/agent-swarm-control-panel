@@ -1,5 +1,13 @@
 import type { RefObject } from "react";
-import type { Approval, LogEntry, Run, RunActivity, RunPhase, RunTraceSpan } from "../types";
+import type {
+  Approval,
+  LogEntry,
+  Run,
+  RunActivity,
+  RunAnnotation,
+  RunPhase,
+  RunTraceSpan
+} from "../types";
 import TraceWaterfall from "./TraceWaterfall";
 
 type RunDetailDrawerProps = {
@@ -9,6 +17,13 @@ type RunDetailDrawerProps = {
   timeline: RunPhase[];
   activity: RunActivity[];
   trace: RunTraceSpan[];
+  annotations: RunAnnotation[];
+  annotationNote: string;
+  annotationTags: string;
+  onAnnotationNoteChange: (value: string) => void;
+  onAnnotationTagsChange: (value: string) => void;
+  onAddAnnotation: () => void;
+  onCopyHandoff?: () => void;
   onClose: () => void;
   onCopyLink?: () => void;
   panelRef: RefObject<HTMLDivElement>;
@@ -21,6 +36,13 @@ export default function RunDetailDrawer({
   timeline,
   activity,
   trace,
+  annotations,
+  annotationNote,
+  annotationTags,
+  onAnnotationNoteChange,
+  onAnnotationTagsChange,
+  onAddAnnotation,
+  onCopyHandoff,
   onClose,
   onCopyLink,
   panelRef
@@ -47,6 +69,11 @@ export default function RunDetailDrawer({
             {onCopyLink ? (
               <button className="ghost" onClick={onCopyLink} type="button">
                 Copy link
+              </button>
+            ) : null}
+            {onCopyHandoff ? (
+              <button className="ghost" onClick={onCopyHandoff} type="button">
+                Copy handoff
               </button>
             ) : null}
             <button className="ghost" onClick={onClose} type="button">
@@ -139,6 +166,55 @@ export default function RunDetailDrawer({
                         {item.detail} · {item.timestamp}
                       </p>
                     </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="drawer-section">
+            <h4>Operator notes & tags</h4>
+            <div className="field">
+              <label htmlFor="run-note">Note</label>
+              <textarea
+                id="run-note"
+                rows={3}
+                value={annotationNote}
+                onChange={(event) => onAnnotationNoteChange(event.target.value)}
+                placeholder="Capture a triage note, blocker, or handoff context."
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="run-note-tags">Tags (comma or newline separated)</label>
+              <textarea
+                id="run-note-tags"
+                rows={2}
+                value={annotationTags}
+                onChange={(event) => onAnnotationTagsChange(event.target.value)}
+                placeholder="blocked, compliance, qa"
+              />
+            </div>
+            <button className="primary" type="button" onClick={onAddAnnotation}>
+              Save note
+            </button>
+            {annotations.length === 0 ? (
+              <p className="muted">No notes yet for this run.</p>
+            ) : (
+              <ul className="stack note-list">
+                {annotations.map((annotation) => (
+                  <li key={annotation.id} className="note-item">
+                    <p>{annotation.note}</p>
+                    <p className="muted">
+                      {annotation.author} · {new Date(annotation.createdAtIso).toLocaleString()}
+                    </p>
+                    {annotation.tags.length > 0 ? (
+                      <div className="run-tags">
+                        {annotation.tags.map((tag) => (
+                          <span key={`${annotation.id}-${tag}`} className="pill muted">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

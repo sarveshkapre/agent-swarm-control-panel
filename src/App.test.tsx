@@ -292,6 +292,86 @@ it("queues a run from the selected template card", async () => {
   ).toBeInTheDocument();
 });
 
+it("saves run annotations with tags and filters runs by selected tag", async () => {
+  render(<App />);
+
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+
+  const targetRun = within(runList!).getByText(/r-113/i).closest(".run") as HTMLElement | null;
+  expect(targetRun).not.toBeNull();
+
+  await act(async () => {
+    await user.click(within(targetRun!).getByRole("button", { name: /Details/i }));
+  });
+
+  const dialog = await screen.findByRole("dialog", { name: /Run details/i });
+  await act(async () => {
+    await user.type(
+      within(dialog).getByLabelText(/^Note$/i),
+      "Approval has been pending for too long, escalate to owner."
+    );
+  });
+  await act(async () => {
+    await user.type(within(dialog).getByLabelText(/Tags/i), "blocked, escalation");
+  });
+  await act(async () => {
+    await user.click(within(dialog).getByRole("button", { name: /Save note/i }));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Saved note for r-113/i);
+  });
+
+  await act(async () => {
+    await user.click(within(dialog).getByRole("button", { name: /^Close$/i }));
+  });
+
+  await act(async () => {
+    await user.selectOptions(screen.getByLabelText(/Filter by run tag/i), "blocked");
+  });
+
+  expect(within(runList!).getAllByRole("article")).toHaveLength(1);
+  expect(within(runList!).getByText(/r-113/i)).toBeInTheDocument();
+  expect(within(runList!).getByText(/^#blocked$/i)).toBeInTheDocument();
+});
+
+it("copies a run handoff bundle from run details", async () => {
+  try {
+    Object.defineProperty(window.navigator, "clipboard", {
+      value: undefined,
+      configurable: true
+    });
+  } catch {
+    // Some environments expose a non-configurable clipboard; banner assertions below are still valid.
+  }
+  if (!document.execCommand) {
+    Object.defineProperty(document, "execCommand", { value: () => true, configurable: true });
+  }
+  vi.spyOn(document, "execCommand").mockImplementation(() => true);
+
+  render(<App />);
+  const user = userEvent.setup();
+  const runList = document.querySelector<HTMLElement>(".run-list");
+  expect(runList).not.toBeNull();
+
+  const targetRun = within(runList!).getByText(/r-114/i).closest(".run") as HTMLElement | null;
+  expect(targetRun).not.toBeNull();
+  await act(async () => {
+    await user.click(within(targetRun!).getByRole("button", { name: /Details/i }));
+  });
+
+  const dialog = await screen.findByRole("dialog", { name: /Run details/i });
+  await act(async () => {
+    await user.click(within(dialog).getByRole("button", { name: /Copy handoff/i }));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Copied handoff bundle for r-114/i);
+  });
+});
+
 it("shows run health summary metrics and at-risk run details", () => {
   render(<App />);
 
@@ -578,7 +658,9 @@ it("sanitizes malformed imported state instead of applying unsafe values", async
   expect(runList).not.toBeNull();
   expect(runList!.querySelectorAll(".run")).toHaveLength(3);
 
-  const fileInput = document.querySelector<HTMLInputElement>("input[type='file']");
+  const controlCard = screen.getByText(/Control surface/i).closest(".card");
+  expect(controlCard).not.toBeNull();
+  const fileInput = controlCard!.querySelector<HTMLInputElement>("input[type='file']");
   expect(fileInput).not.toBeNull();
 
   const invalidState = {
@@ -712,6 +794,100 @@ it("creates a new run template, persists it, and hydrates on reload", async () =
   const templateGridAfter = templatesCardAfter!.querySelector<HTMLElement>(".template-grid");
   expect(templateGridAfter).not.toBeNull();
   expect(within(templateGridAfter!).getByText(/^Churn triage playbook$/i)).toBeInTheDocument();
+});
+
+it("exports and imports template library JSON separately from workspace state", async () => {
+  if (!("createObjectURL" in URL)) {
+    Object.defineProperty(URL, "createObjectURL", {
+      value: () => "blob:unsupported",
+      writable: true
+    });
+  }
+  if (!("revokeObjectURL" in URL)) {
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: () => undefined,
+      writable: true
+    });
+  }
+
+  const createObjectURLSpy = vi
+    .spyOn(URL, "createObjectURL")
+    .mockImplementation(() => "blob:mock-url");
+  const revokeObjectURLSpy = vi
+    .spyOn(URL, "revokeObjectURL")
+    .mockImplementation(() => undefined);
+  const anchorClickSpy = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => undefined);
+
+  render(<App />);
+  const user = userEvent.setup();
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /Export JSON/i }));
+  });
+
+  await waitFor(() => {
+    expect(createObjectURLSpy).toHaveBeenCalled();
+  });
+
+  const latestCall =
+    createObjectURLSpy.mock.calls[createObjectURLSpy.mock.calls.length - 1];
+  expect(latestCall).toBeTruthy();
+  const [blob] = latestCall as [Blob];
+  const blobText = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+  const payload = JSON.parse(blobText) as {
+    templateSchemaVersion: number;
+    templates: Array<{ id: string; name: string }>;
+  };
+
+  expect(payload.templateSchemaVersion).toBe(1);
+  expect(payload.templates.length).toBeGreaterThan(0);
+
+  const templatesCard = screen.getByText(/Run templates/i).closest(".card") as
+    | HTMLElement
+    | null;
+  expect(templatesCard).not.toBeNull();
+  const fileInput = templatesCard!.querySelector<HTMLInputElement>("input[type='file']");
+  expect(fileInput).not.toBeNull();
+
+  const importPayload = {
+    templateSchemaVersion: 1,
+    exportedAt: "2026-02-11T00:00:00.000Z",
+    templates: [
+      {
+        id: "tpl-import-incident",
+        name: "Incident rapid triage",
+        objective: "Triage active incident and produce owner-ready update",
+        agents: ["Researcher", "Tester"],
+        approvals: ["External HTTP"],
+        estCost: "$4-6",
+        playbook: ["Capture incident context", "Validate impact", "Publish owner update"]
+      }
+    ]
+  };
+
+  const file = new File([JSON.stringify(importPayload)], "templates.json", {
+    type: "application/json"
+  });
+
+  await act(async () => {
+    fireEvent.change(fileInput!, { target: { files: [file] } });
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("status")).toHaveTextContent(/Imported 1 templates/i);
+  });
+  expect(within(templatesCard!).getByText(/^Incident rapid triage$/i)).toBeInTheDocument();
+
+  createObjectURLSpy.mockRestore();
+  revokeObjectURLSpy.mockRestore();
+  anchorClickSpy.mockRestore();
 });
 
 it("filters runs by status via chips and persists the selection", async () => {

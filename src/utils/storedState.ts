@@ -3,6 +3,7 @@ import type {
   LogBudget,
   LogLevelFilter,
   PolicySettings,
+  RunAnnotation,
   Run,
   RunStatus,
   RunStatusFilter,
@@ -100,6 +101,43 @@ function sanitizeTemplateList(value: unknown) {
     .map((template) => sanitizeRunTemplate(template))
     .filter((template): template is RunTemplate => template !== null);
 }
+
+function sanitizeTag(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/g, "")
+    .replace(/[^a-z0-9/_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function sanitizeRunAnnotation(value: unknown): RunAnnotation | null {
+  if (!isObjectRecord(value)) return null;
+  const rawTags = Array.isArray(value.tags) ? value.tags : [];
+  const tags = rawTags
+    .map((tag) => (typeof tag === "string" ? sanitizeTag(tag) : ""))
+    .filter(Boolean);
+  const annotation: RunAnnotation = {
+    id: typeof value.id === "string" ? value.id : "",
+    runId: typeof value.runId === "string" ? value.runId : "",
+    note: typeof value.note === "string" ? value.note.trim() : "",
+    tags: Array.from(new Set(tags)),
+    author: typeof value.author === "string" ? value.author : "Operator",
+    createdAtIso: isIsoTimestamp(value.createdAtIso) ? value.createdAtIso : new Date(0).toISOString()
+  };
+  if (!annotation.id || !annotation.runId || !annotation.note) return null;
+  return annotation;
+}
+
+function sanitizeRunAnnotationList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((annotation) => sanitizeRunAnnotation(annotation))
+    .filter((annotation): annotation is RunAnnotation => annotation !== null);
+}
+
+export { sanitizeTemplateList };
 
 function sanitizePolicy(value: unknown, defaults: StoredStateDefaults): PolicySettings {
   if (!isObjectRecord(value)) return defaults.policy;
@@ -210,17 +248,23 @@ export function sanitizeStoredState(
   defaults: StoredStateDefaults
 ): Partial<StoredState> | null {
   if (!isObjectRecord(value)) return null;
+  const runTagFilter =
+    typeof value.runTagFilter === "string" && value.runTagFilter.trim().length > 0
+      ? sanitizeTag(value.runTagFilter)
+      : "";
   return {
     theme: value.theme === "light" || value.theme === "dark" ? value.theme : undefined,
     runSearch: typeof value.runSearch === "string" ? value.runSearch : undefined,
     runStatusFilter: isRunStatusFilter(value.runStatusFilter)
       ? value.runStatusFilter
       : undefined,
+    runTagFilter: runTagFilter || undefined,
     logSearch: typeof value.logSearch === "string" ? value.logSearch : undefined,
     logLevel: isLogLevelFilter(value.logLevel) ? value.logLevel : undefined,
     logAgent: typeof value.logAgent === "string" ? value.logAgent : undefined,
     pinnedLogs: isStringArray(value.pinnedLogs) ? value.pinnedLogs : undefined,
     queuedRuns: sanitizeRunList(value.queuedRuns),
+    runAnnotations: sanitizeRunAnnotationList(value.runAnnotations),
     runOverrides: sanitizeRunOverrides(value.runOverrides),
     policy: sanitizePolicy(value.policy, defaults),
     spikeAlerts: sanitizeSpikeAlerts(value.spikeAlerts, defaults),

@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import type { RunTemplate } from "../types";
 
 type RunTemplatesCardProps = {
@@ -11,6 +12,10 @@ type RunTemplatesCardProps = {
   onEditTemplate: (template: RunTemplate) => void;
   onDuplicateTemplate: (template: RunTemplate) => void;
   onDeleteTemplate: (template: RunTemplate) => void;
+  onExportTemplates: () => void;
+  onImportTemplatesClick: () => void;
+  onImportTemplatesFile: (file: File | null) => void;
+  importInputRef: RefObject<HTMLInputElement>;
 };
 
 export default function RunTemplatesCard({
@@ -23,15 +28,34 @@ export default function RunTemplatesCard({
   onNewTemplate,
   onEditTemplate,
   onDuplicateTemplate,
-  onDeleteTemplate
+  onDeleteTemplate,
+  onExportTemplates,
+  onImportTemplatesClick,
+  onImportTemplatesFile,
+  importInputRef
 }: RunTemplatesCardProps) {
   return (
     <div className="card">
       <div className="card-header">
         <h2>Run templates</h2>
-        <button className="ghost" onClick={onNewTemplate} type="button">
-          New template
-        </button>
+        <div className="header-actions">
+          <button className="ghost" onClick={onImportTemplatesClick} type="button">
+            Import JSON
+          </button>
+          <button className="ghost" onClick={onExportTemplates} type="button">
+            Export JSON
+          </button>
+          <button className="ghost" onClick={onNewTemplate} type="button">
+            New template
+          </button>
+        </div>
+        <input
+          ref={importInputRef}
+          className="file-input"
+          type="file"
+          accept="application/json"
+          onChange={(event) => onImportTemplatesFile(event.target.files?.[0] ?? null)}
+        />
       </div>
       <div className="template-grid">
         {templates.map((template) => (

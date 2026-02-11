@@ -46,6 +46,15 @@ export type Run = {
   tokens: string;
 };
 
+export type RunAnnotation = {
+  id: string;
+  runId: string;
+  note: string;
+  tags: string[];
+  author: string;
+  createdAtIso: string;
+};
+
 export type RunTraceSpanStatus = "ok" | "running" | "waiting" | "error";
 
 export type RunTraceSpan = {
@@ -170,11 +179,13 @@ export type StoredState = {
   theme: "dark" | "light";
   runSearch: string;
   runStatusFilter: RunStatusFilter;
+  runTagFilter: string;
   logSearch: string;
   logLevel: LogLevelFilter;
   logAgent: string;
   pinnedLogs: string[];
   queuedRuns: Run[];
+  runAnnotations: RunAnnotation[];
   runOverrides: Record<string, RunStatus>;
   policy: PolicySettings;
   spikeAlerts: SpikeAlerts;

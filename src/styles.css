@@ -814,6 +814,12 @@ select {
   gap: 10px;
 }
 
+.run-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .run-actions {
   display: flex;
   gap: 8px;
@@ -1077,6 +1083,20 @@ select {
   padding-left: 18px;
   display: grid;
   gap: 6px;
+}
+
+.note-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.note-item {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 8px;
 }
 
 .timeline {

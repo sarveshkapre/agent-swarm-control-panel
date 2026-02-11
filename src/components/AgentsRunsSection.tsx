@@ -7,12 +7,16 @@ type AgentsRunsSectionProps = {
   onRunSearchChange: (value: string) => void;
   runStatusFilter: RunStatusFilter;
   onRunStatusFilterChange: (value: RunStatusFilter) => void;
+  runTagFilter: string;
+  runTagOptions: string[];
+  onRunTagFilterChange: (value: string) => void;
   filteredRuns: Run[];
   runStatusLabel: Record<RunStatus, string>;
   onQueueRun: () => void;
   queueingPaused: boolean;
   onRunAction: (run: Run, action: "pause" | "retry" | "cancel") => void;
   onViewDetails: (run: Run) => void;
+  getRunTags: (run: Run) => string[];
   getRunDurationLabel: (run: Run) => string;
   getRunSlaBadge: (run: Run) => { label: string; tone: "low" | "medium" | "high" | "muted" };
 };
@@ -24,12 +28,16 @@ export default function AgentsRunsSection({
   onRunSearchChange,
   runStatusFilter,
   onRunStatusFilterChange,
+  runTagFilter,
+  runTagOptions,
+  onRunTagFilterChange,
   filteredRuns,
   runStatusLabel,
   onQueueRun,
   queueingPaused,
   onRunAction,
   onViewDetails,
+  getRunTags,
   getRunDurationLabel,
   getRunSlaBadge
 }: AgentsRunsSectionProps) {
@@ -57,6 +65,18 @@ export default function AgentsRunsSection({
             placeholder="Search runs, owners, statuses"
             aria-label="Search runs"
           />
+          <select
+            value={runTagFilter}
+            onChange={(event) => onRunTagFilterChange(event.target.value)}
+            aria-label="Filter by run tag"
+          >
+            <option value="all">All tags</option>
+            {runTagOptions.map((tag) => (
+              <option key={tag} value={tag}>
+                #{tag}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="chip-row" role="group" aria-label="Run status filters">
           {filters.map((filter) => (
@@ -107,6 +127,7 @@ export default function AgentsRunsSection({
         <div className="run-list">
           {filteredRuns.map((run) => {
             const slaBadge = getRunSlaBadge(run);
+            const runTags = getRunTags(run);
             return (
               <article key={run.id} className="run">
                 <div>
@@ -133,6 +154,15 @@ export default function AgentsRunsSection({
                   <span className={`pill ${slaBadge.tone}`}>{slaBadge.label}</span>
                   <span className="muted">Duration: {getRunDurationLabel(run)}</span>
                 </div>
+                {runTags.length > 0 ? (
+                  <div className="run-tags" aria-label={`Run tags for ${run.id}`}>
+                    {runTags.slice(0, 6).map((tag) => (
+                      <span key={`${run.id}-${tag}`} className="pill muted">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="run-actions">
                   <button
                     className="ghost"

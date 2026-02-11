@@ -18,6 +18,7 @@ import type {
   IntegrationOption,
   PolicySettings,
   Run,
+  RunAnnotation,
   RunActivity,
   RunHealthSummary,
   RunPhase,
@@ -64,7 +65,12 @@ import {
   getRunDurationMinutes,
   getRunSlaBadge
 } from "./utils/runInsights";
-import { getSafeStorage, readStoredState, sanitizeStoredState } from "./utils/storedState";
+import {
+  getSafeStorage,
+  readStoredState,
+  sanitizeStoredState,
+  sanitizeTemplateList
+} from "./utils/storedState";
 
 const statusLabel: Record<AgentStatus, string> = {
   idle: "Idle",
@@ -413,6 +419,16 @@ function parseLineList(raw: string) {
   return Array.from(new Set(parts));
 }
 
+function normalizeTag(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/g, "")
+    .replace(/[^a-z0-9/_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function getDrawerParamsFromLocation() {
   const url = new URL(window.location.href);
   return {
@@ -458,6 +474,9 @@ export default function App() {
       ? value
       : "all";
   });
+  const [runTagFilter, setRunTagFilter] = useState(
+    () => initialStoredState?.runTagFilter || "all"
+  );
   const [logSearch, setLogSearch] = useState(() => initialStoredState?.logSearch ?? "");
   const [logLevel, setLogLevel] = useState<LogLevelFilter>(() => {
     const value = initialStoredState?.logLevel;
@@ -492,6 +511,9 @@ export default function App() {
   }));
   const [queuedRuns, setQueuedRuns] = useState<Run[]>(
     () => initialStoredState?.queuedRuns ?? []
+  );
+  const [runAnnotations, setRunAnnotations] = useState<RunAnnotation[]>(
+    () => initialStoredState?.runAnnotations ?? []
   );
   const [runOverrides, setRunOverrides] = useState<Record<string, RunStatus>>(
     () => initialStoredState?.runOverrides ?? {}
@@ -538,6 +560,7 @@ export default function App() {
   const [composerOwner, setComposerOwner] = useState("Ops");
   const [composerTemplateId, setComposerTemplateId] = useState("none");
   const importInputRef = useRef<HTMLInputElement>(null);
+  const templateImportInputRef = useRef<HTMLInputElement>(null);
   const [confirmationToasts, setConfirmationToasts] = useState<ConfirmationToast[]>([]);
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const policyModalPanelRef = useRef<HTMLDivElement>(null);
@@ -549,6 +572,8 @@ export default function App() {
   const [clockMs, setClockMs] = useState(() => Date.now());
   const suppressDrawerUrlSyncRef = useRef(false);
   const hydratedDrawerFromUrlRef = useRef(false);
+  const [annotationNoteDraft, setAnnotationNoteDraft] = useState("");
+  const [annotationTagsDraft, setAnnotationTagsDraft] = useState("");
 
   const queueRun = useCallback(
     (options?: {
@@ -630,6 +655,24 @@ export default function App() {
     });
   }, [queuedRuns, runOverrides]);
 
+  const runAnnotationsById = useMemo(
+    () =>
+      runAnnotations.reduce<Record<string, RunAnnotation[]>>((acc, annotation) => {
+        if (!acc[annotation.runId]) acc[annotation.runId] = [];
+        acc[annotation.runId]!.push(annotation);
+        return acc;
+      }, {}),
+    [runAnnotations]
+  );
+
+  const runTagOptions = useMemo(() => {
+    const tags = new Set<string>();
+    runAnnotations.forEach((annotation) => {
+      annotation.tags.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [runAnnotations]);
+
   const openApprovalDrawer = useCallback((approval: Approval | null) => {
     setSelectedRun(null);
     setSelectedApproval(approval);
@@ -644,6 +687,8 @@ export default function App() {
   const openRunDrawer = useCallback((run: Run | null) => {
     setSelectedApproval(null);
     setSelectedRun(run);
+    setAnnotationNoteDraft("");
+    setAnnotationTagsDraft("");
     if (run) {
       setPolicyOpen(false);
       setEvidenceViewerOpen(false);
@@ -794,11 +839,13 @@ export default function App() {
       theme,
       runSearch,
       runStatusFilter,
+      runTagFilter,
       logSearch,
       logLevel,
       logAgent,
       pinnedLogs,
       queuedRuns,
+      runAnnotations,
       runOverrides,
       policy,
       spikeAlerts,
@@ -812,11 +859,13 @@ export default function App() {
     theme,
     runSearch,
     runStatusFilter,
+    runTagFilter,
     logSearch,
     logLevel,
     logAgent,
     pinnedLogs,
     queuedRuns,
+    runAnnotations,
     runOverrides,
     policy,
     spikeAlerts,
@@ -896,19 +945,37 @@ export default function App() {
     }
   }, [composerTemplateId, selectedTemplateId, templates]);
 
+  useEffect(() => {
+    if (runTagFilter === "all") return;
+    if (runTagOptions.includes(runTagFilter)) return;
+    setRunTagFilter("all");
+  }, [runTagFilter, runTagOptions]);
+
   const filteredRuns = useMemo(() => {
     const statusFiltered =
       runStatusFilter === "all"
         ? runData
         : runData.filter((run) => run.status === runStatusFilter);
-    if (!runSearch.trim()) return statusFiltered;
+    const tagFiltered =
+      runTagFilter === "all"
+        ? statusFiltered
+        : statusFiltered.filter((run) =>
+            (runAnnotationsById[run.id] ?? []).some((annotation) =>
+              annotation.tags.includes(runTagFilter)
+            )
+          );
+    if (!runSearch.trim()) return tagFiltered;
     const value = runSearch.trim().toLowerCase();
-    return statusFiltered.filter((run) =>
-      [run.objective, run.owner, run.status, run.id].some((field) =>
-        field.toLowerCase().includes(value)
-      )
+    return tagFiltered.filter((run) =>
+      [
+        run.objective,
+        run.owner,
+        run.status,
+        run.id,
+        ...(runAnnotationsById[run.id]?.flatMap((annotation) => annotation.tags) ?? [])
+      ].some((field) => field.toLowerCase().includes(value))
     );
-  }, [runSearch, runData, runStatusFilter]);
+  }, [runAnnotationsById, runSearch, runData, runStatusFilter, runTagFilter]);
 
   const filteredLogs = useMemo(() => {
     const value = logSearch.trim().toLowerCase();
@@ -1041,6 +1108,85 @@ export default function App() {
     const ok = await copyToClipboard(share.href);
     setBanner(ok ? "Copied run link." : "Unable to copy run link in this browser.");
   }, [selectedRun?.id]);
+
+  const addRunAnnotation = useCallback(() => {
+    if (!selectedRun) return;
+    const note = annotationNoteDraft.trim();
+    if (!note) {
+      setBanner("Add a note before saving.");
+      return;
+    }
+    const tags = parseTokenList(annotationTagsDraft)
+      .map((tag) => normalizeTag(tag))
+      .filter(Boolean)
+      .slice(0, 8);
+    const annotation: RunAnnotation = {
+      id: `note-${Date.now()}-${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, "0")}`,
+      runId: selectedRun.id,
+      note,
+      tags,
+      author: "Operator",
+      createdAtIso: new Date().toISOString()
+    };
+    setRunAnnotations((prev) => [annotation, ...prev]);
+    setAnnotationNoteDraft("");
+    setAnnotationTagsDraft("");
+    setBanner(`Saved note for ${selectedRun.id}.`);
+  }, [annotationNoteDraft, annotationTagsDraft, selectedRun]);
+
+  const buildRunHandoffBundle = useCallback(
+    (run: Run) => {
+      const relatedLogs = logs.filter((log) => run.agents.includes(log.agent)).slice(0, 5);
+      const relatedApprovals = approvals.filter((approval) =>
+        run.agents.includes(approval.requestedBy)
+      );
+      const relatedNotes = (runAnnotationsById[run.id] ?? []).slice(0, 5);
+      const now = new Date().toISOString();
+      return [
+        `# Run handoff bundle (${now})`,
+        "",
+        "## Run summary",
+        `- Run: ${run.id}`,
+        `- Objective: ${run.objective}`,
+        `- Owner: ${run.owner}`,
+        `- Status: ${run.status}`,
+        `- Agents: ${run.agents.join(", ")}`,
+        `- Started: ${run.startedAt}`,
+        "",
+        "## Approvals",
+        ...(relatedApprovals.length === 0
+          ? ["- None tied to this run"]
+          : relatedApprovals.map(
+              (approval) =>
+                `- ${approval.id} | ${approval.risk} | ${approval.title} | ${approval.requestedAt}`
+            )),
+        "",
+        "## Last 5 logs",
+        ...(relatedLogs.length === 0
+          ? ["- No logs found for this run"]
+          : relatedLogs.map((log) => `- [${log.timestamp}] ${log.agent}/${log.level}: ${log.message}`)),
+        "",
+        "## Operator notes",
+        ...(relatedNotes.length === 0
+          ? ["- No operator notes"]
+          : relatedNotes.map(
+              (note) =>
+                `- ${new Date(note.createdAtIso).toISOString()} ${note.author}: ${note.note} ${
+                  note.tags.length > 0 ? `(tags: ${note.tags.join(", ")})` : ""
+                }`
+            ))
+      ].join("\n");
+    },
+    [runAnnotationsById]
+  );
+
+  const copyRunHandoff = useCallback(async () => {
+    if (!selectedRun) return;
+    const ok = await copyToClipboard(buildRunHandoffBundle(selectedRun));
+    setBanner(ok ? `Copied handoff bundle for ${selectedRun.id}.` : "Unable to copy handoff bundle.");
+  }, [buildRunHandoffBundle, selectedRun]);
 
   const copyEvidenceDigest = useCallback(async () => {
     const digest = evidenceViewerPayload?.integrity?.digest;
@@ -1216,11 +1362,13 @@ export default function App() {
       theme,
       runSearch,
       runStatusFilter,
+      runTagFilter,
       logSearch,
       logLevel,
       logAgent,
       pinnedLogs,
       queuedRuns,
+      runAnnotations,
       runOverrides,
       policy,
       spikeAlerts,
@@ -1248,11 +1396,13 @@ export default function App() {
       setTheme(parsed.theme ?? "dark");
       setRunSearch(parsed.runSearch ?? "");
       setRunStatusFilter(parsed.runStatusFilter ?? "all");
+      setRunTagFilter(parsed.runTagFilter ?? "all");
       setLogSearch(parsed.logSearch ?? "");
       setLogLevel(parsed.logLevel ?? "all");
       setLogAgent(parsed.logAgent ?? "all");
       setPinnedLogs(parsed.pinnedLogs ?? []);
       setQueuedRuns(parsed.queuedRuns ?? []);
+      setRunAnnotations(parsed.runAnnotations ?? []);
       setRunOverrides(parsed.runOverrides ?? {});
       setPolicy(parsed.policy ?? defaultPolicy);
       setSpikeAlerts(parsed.spikeAlerts ?? defaultSpikeAlerts);
@@ -1272,6 +1422,61 @@ export default function App() {
       setSelectedTemplateId(nextSelectedId);
       setBanner("Imported workspace state.");
       if (importInputRef.current) importInputRef.current.value = "";
+    };
+    reader.readAsText(file);
+  };
+
+  const exportTemplateLibrary = () => {
+    downloadJson("agent-swarm-templates.json", {
+      templateSchemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      templates
+    });
+    setBanner(`Exported ${templates.length} template${templates.length === 1 ? "" : "s"}.`);
+  };
+
+  const importTemplateLibrary = (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = safeJsonParse<unknown>(String(reader.result));
+      const payloadTemplates =
+        Array.isArray(parsed)
+          ? parsed
+          : parsed && typeof parsed === "object" && "templates" in parsed
+            ? (parsed as { templates?: unknown }).templates
+            : null;
+      const imported = sanitizeTemplateList(payloadTemplates);
+      if (imported.length === 0) {
+        setBanner("Import failed. No valid templates found in JSON.");
+        if (templateImportInputRef.current) templateImportInputRef.current.value = "";
+        return;
+      }
+
+      const importStamp = Date.now();
+      setTemplates((prev) => {
+        const usedIds = new Set(prev.map((template) => template.id));
+        let renamedCount = 0;
+        const normalized = imported.map((template, index) => {
+          let id = template.id;
+          if (usedIds.has(id)) {
+            renamedCount += 1;
+            id = `${id}-import-${importStamp}-${index + 1}`;
+          }
+          usedIds.add(id);
+          return { ...template, id };
+        });
+        const firstImported = normalized[0];
+        if (firstImported) setSelectedTemplateId(firstImported.id);
+        setBanner(
+          renamedCount > 0
+            ? `Imported ${normalized.length} templates (${renamedCount} id collisions renamed).`
+            : `Imported ${normalized.length} templates.`
+        );
+        return [...normalized, ...prev];
+      });
+
+      if (templateImportInputRef.current) templateImportInputRef.current.value = "";
     };
     reader.readAsText(file);
   };
@@ -1298,12 +1503,20 @@ export default function App() {
     composerTemplateId === "none"
       ? null
       : templates.find((template) => template.id === composerTemplateId) ?? null;
+  const getRunTags = useCallback(
+    (run: Run) =>
+      Array.from(
+        new Set((runAnnotationsById[run.id] ?? []).flatMap((annotation) => annotation.tags))
+      ),
+    [runAnnotationsById]
+  );
   const runDetailLogs = selectedRun
-    ? logs.filter((log) => selectedRun.agents.includes(log.agent)).slice(0, 3)
+    ? logs.filter((log) => selectedRun.agents.includes(log.agent)).slice(0, 5)
     : [];
   const runDetailApprovals = selectedRun
     ? approvals.filter((approval) => selectedRun.agents.includes(approval.requestedBy))
     : [];
+  const runDetailAnnotations = selectedRun ? runAnnotationsById[selectedRun.id] ?? [] : [];
 
   const getRunDurationLabel = (run: Run) =>
     formatRunDurationLabel(run, runDurationsById[run.id] ?? null);
@@ -1689,12 +1902,16 @@ export default function App() {
         onRunSearchChange={setRunSearch}
         runStatusFilter={runStatusFilter}
         onRunStatusFilterChange={setRunStatusFilter}
+        runTagFilter={runTagFilter}
+        runTagOptions={runTagOptions}
+        onRunTagFilterChange={setRunTagFilter}
         filteredRuns={filteredRuns}
         runStatusLabel={runStatusLabel}
         onQueueRun={() => queueRun({ source: "runs panel" })}
         queueingPaused={policy.pauseNewRuns}
         onRunAction={handleRunAction}
         onViewDetails={openRunDrawer}
+        getRunTags={getRunTags}
         getRunDurationLabel={getRunDurationLabel}
         getRunSlaBadge={getRunSlaBadgeForRun}
       />
@@ -1770,6 +1987,10 @@ export default function App() {
           onEditTemplate={openEditTemplate}
           onDuplicateTemplate={openDuplicateTemplate}
           onDeleteTemplate={deleteTemplate}
+          onExportTemplates={exportTemplateLibrary}
+          onImportTemplatesClick={() => templateImportInputRef.current?.click()}
+          onImportTemplatesFile={importTemplateLibrary}
+          importInputRef={templateImportInputRef}
         />
       </section>
 
@@ -1799,6 +2020,13 @@ export default function App() {
           timeline={getRunTimeline(selectedRun)}
           activity={getRunActivityFeed(selectedRun)}
           trace={getRunTrace(selectedRun)}
+          annotations={runDetailAnnotations}
+          annotationNote={annotationNoteDraft}
+          annotationTags={annotationTagsDraft}
+          onAnnotationNoteChange={setAnnotationNoteDraft}
+          onAnnotationTagsChange={setAnnotationTagsDraft}
+          onAddAnnotation={addRunAnnotation}
+          onCopyHandoff={() => void copyRunHandoff()}
           onClose={() => setSelectedRun(null)}
           onCopyLink={() => void copyRunLink()}
           panelRef={runDetailPanelRef}
